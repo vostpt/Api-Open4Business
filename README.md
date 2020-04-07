@@ -47,3 +47,10 @@ npm run start:dev
 npm run build
 npm start:prod
 ```
+
+### Development Dockers
+To run additional layers (like DB's):
+``` 
+docker-compose --file ./.docker/docker-compose.yml up
+
+```

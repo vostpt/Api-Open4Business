@@ -1,0 +1,26 @@
+version: "3"
+
+networks:
+  dev-network:
+    driver: bridge
+
+volumes:
+  db_data:
+
+services:
+  mongo:
+    image: mongo:3.6
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=rootPassword
+      - MONGO_DEFAULT_DB=developmentDB
+      - MONGO_DEFAULT_DB_USER=DevUser
+      - MONGO_DEFAULT_DB_PASSWORD=DevUserPassword
+    ports:
+      - "27017:27017"
+    networks:
+      - dev-network
+    volumes:
+      - "db_data:/data/db"
+      - "./mongo:/docker-entrypoint-initdb.d"
+  
