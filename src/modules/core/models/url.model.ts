@@ -29,8 +29,8 @@ export class UrlModel extends Url {
   }
 
 
-  private clearStartAndEndSlashes(string: string) {
-    return string.replace(/(^\/+|\/+$)/g, '');
+  private clearStartAndEndSlashes(s: string) {
+    return s.replace(/(^\/+|\/+$)/g, '');
   }
 
 
@@ -115,9 +115,10 @@ export class UrlModel extends Url {
     const _url = new URL(url);
     this.protocol = _url.protocol.replace(/[^a-zA-Z]+/g, ''); // Keep only letters.
     this.host = _url.hostname;
-    this.port = parseInt(_url.port);
+    this.port = parseInt(_url.port, 16);
     this.path = decodeURI(this.clearStartAndEndSlashes(_url.pathname));
-    this.queryParams = (_url.search ? JSON.parse('{"' + _url.search.replace(/&/g, '","').replace(/=/g, '":"').replace('?', '') + '"}', function (key, value) { return key === "" ? value : decodeURIComponent(value) }) : {});
+    this.queryParams = (_url.search ?
+      JSON.parse('{"' + _url.search.replace(/&/g, '","').replace(/=/g, '":"').replace('?', '') + '"}', (key, value) => { return key === '' ? value : decodeURIComponent(value) }) : {});
   }
 
 }

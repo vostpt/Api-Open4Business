@@ -1,0 +1,13 @@
+{
+  "Dictionary": {
+    "email": "email",
+    "password": "password"
+  },
+  "auth": {
+    "labels": {
+      "sign_in": "Signin",
+      "logout": "Logout",
+      "dont_remember_password": "Recover password"
+    }
+  }
+}

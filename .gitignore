@@ -46,3 +46,5 @@ testem.log
 
 # Environments
 .env
+
+uploads

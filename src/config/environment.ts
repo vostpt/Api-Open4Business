@@ -1,15 +1,39 @@
-import * as Joi from '@hapi/joi';
+import { config } from 'dotenv';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
-export class EnvironmentVariablesModel {
-  // NOTE: To have access to properties before assignment, it's necessary to equalize them to NULL here.
-  APP_URL: string = null;
-  APP_PORT: number = null;
-  LOG_LEVEL: string = null;
+config();
+
+export class Environment {
+  port: number;
+  logLevel: string;
+  mongoDbHost: string;
+  mongoDbPort: number;
+  mongoDbDatabase: string;
+  mongoDbInitialConnectionAttempts: number;
+  mongoDbInitialConnectionAInterval: number;
+  mongoDbUser: string;
+  mongoDbPassword: string;
+  tokenTtl: number;
+  uploadsPath: string;
+  jwtPrivateKey: Buffer;
+  jwtPublicKey: Buffer
+  defaultTimeout: number;
 }
 
-// Validations to apply to environment variables.
-export const ENV_VARIABLES_SCHEMA = Joi.object({
-  APP_URL: Joi.string().uri().required(),
-  APP_PORT: Joi.number().integer().default(80),
-  LOG_LEVEL: Joi.string()
-});
+export const environment: Environment = {
+  port: Number(process.env.PORT),
+  logLevel: process.env.LOG_LEVEL,
+  mongoDbHost: process.env.MONGO_DB_HOST,
+  mongoDbPort: Number(process.env.MONGO_DB_PORT),
+  mongoDbDatabase: process.env.MONGO_DB_DATABASE,
+  mongoDbInitialConnectionAttempts: Number(process.env.MONGO_DB_INITIAL_CONNECTION_ATTEMPTS || 10),
+  mongoDbInitialConnectionAInterval: Number(process.env.MONGO_DB_INITIAL_CONNECTION_INTERVAL || 1000),
+  mongoDbUser: process.env.MONGO_DB_USER,
+  mongoDbPassword: process.env.MONGO_DB_PASS,
+  tokenTtl: Number(process.env.TOKEN_TTL),
+  uploadsPath: process.env.UPLOADS_PATH,
+  jwtPrivateKey: readFileSync((join(__dirname, '../', '/auth-keys/jwtRS256.key'))),
+  jwtPublicKey: readFileSync((join(__dirname, '../', '/auth-keys/jwtRS256.key.pub'))),
+  defaultTimeout: Number(process.env.DEFAULT_TIMEOUT || 90)
+};

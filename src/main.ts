@@ -1,41 +1,57 @@
-import { NestFactory,  } from '@nestjs/core';
-import { Logger } from '@nestjs/common';
+
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe, ValidationError, Logger } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 import * as helmet from 'helmet';
+
+import getRoutesTree from './config/routes';
+import { environment } from './config/environment';
 
 import { AppModule } from './app.module';
 
-import { EnvironmentService } from './modules/core';
-import { SwaggerService } from './modules/core';
+import { TimeoutInterceptor } from './modules/core/interceptors/timeout.interceptor';
 
-import { join } from 'path';
-
-import { swaggerRoutes } from './config/swagger';
+import { AuthDocumentation } from './modules/auth/auth.swagger';
+import { AdminDocumentation } from './modules/admin/admin.swagger';
+import { SwaggerOptionsHelper } from './modules/core/helpers/swagger-options.helper';
+import { InsightsDocumentation } from './modules/insights/insights.swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  app.use(helmet()); // Helmet protects from some well-known web vulnerabilities by setting HTTP headers appropriately.
   app.enableCors();
+  app.use(helmet());
+  app.useLogger(app.get(Logger));
+  app.useStaticAssets(join(__dirname, '/../assets'));
+  app.useGlobalInterceptors(new TimeoutInterceptor());
+  app.useGlobalPipes(new ValidationPipe(
+    {
+      exceptionFactory: (errors: ValidationError[]) => {
+        const final = {
+          errors:
+            errors.map(error => {
+              const _return = {};
+              _return[error.property] = error.constraints[Object.keys(error.constraints)[0]];
+              return _return;
+            })
 
-  // Define assets folder as public access.
-  app.useStaticAssets(join(__dirname, 'assets'), { prefix: '/assets' });
+        }
+        return final;
+      }
+    }
+  ));
 
-  // Configure Swagger documentation.
-  app.get(SwaggerService).init(app, swaggerRoutes);
+  const customCss = SwaggerOptionsHelper.getDefaultImage();
+  const routesTree = getRoutesTree();
+  const swaggerCustomization = { customCss, customSiteTitle: 'Accounts API', customfavIcon: '/assets/images/favicon.ico' };
 
-  // Prepare environment settings and start application.
-  const logger = app.get(Logger);
-  const environmentService = app.get(EnvironmentService);
-  if (environmentService.isValid() ) {
-    await app.listen(environmentService.variables.APP_PORT);
-    logger.log(`Application STARTED successfully at ${environmentService.variables.APP_URL} (port: ${environmentService.variables.APP_PORT})`, 'Main');
-  }
-  else {
-    logger.error(`Application TERMINATED`, null, 'Main');
-    app.close();
-  }
+  AdminDocumentation.init(app, routesTree, swaggerCustomization);
+  AuthDocumentation.init(app, routesTree, swaggerCustomization);
+  InsightsDocumentation.init(app, routesTree, swaggerCustomization);
 
+  app.get(Logger).log(`Running on port ${environment.port}`);
+  await app.listen(environment.port);
 }
 
 bootstrap();
