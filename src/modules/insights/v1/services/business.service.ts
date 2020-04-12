@@ -1,8 +1,8 @@
-import {Injectable, Logger} from '@nestjs/common';
-import {InjectModel} from '@nestjs/mongoose';
-import {Model} from 'mongoose';
-
-import {BusinessModel} from '../models/business.model';
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { v1 as uuidv1 } from 'uuid';
+import { BusinessModel } from '../models/business.model';
 
 @Injectable()
 export class BusinessService {
@@ -14,6 +14,8 @@ export class BusinessService {
     this.logger.setContext(BusinessService.name);
 
     const business = await this.businessModel(data);
+    business.businessId = uuidv1();
+    
     return business.save();
   }
 

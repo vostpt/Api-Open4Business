@@ -1,19 +1,18 @@
 import {Body, Controller, Get, Logger, Post, Res, UploadedFile, UseInterceptors} from '@nestjs/common';
 import {FileInterceptor} from '@nestjs/platform-express';
-import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiUnauthorizedResponse} from '@nestjs/swagger';
+import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags} from '@nestjs/swagger';
 import {Response} from 'express';
+import * as fs from 'fs';
 import {v1 as uuidv1} from 'uuid';
-
 import {multerOptions} from '../../../config/multer.config';
 import {ResponseModel} from '../../auth/v1/models/response.model';
 import {getResponse} from '../../core/helpers/response.helper';
 import {SuccessResponseModel} from '../../core/models/success-response.model';
-
 import {BusinessModel} from './models/business.model';
 import {BusinessService} from './services/business.service';
 import {LocationService} from './services/location.service';
 import {ParseService} from './services/parser.service';
-import { LocationModel } from './models/location.model';
+import { environment } from './../../../config/environment';
 
 @Controller('insights/v1')
 @ApiBearerAuth()
@@ -39,6 +38,22 @@ export class InsightsV1Controller {
       const newBusiness = await this.businessService.createBusiness(business);
 
       if (newBusiness) {
+        if (business.logo) {
+          const originalLogo = business.logo;
+
+          try {  
+            const dotIndex = originalLogo.lastIndexOf('.');
+            business.logo = `${environment.uploadsPath}/company-${newBusiness.businessId}${originalLogo.substr(dotIndex, originalLogo.length - dotIndex)}`;
+
+            fs.rename(originalLogo, business.logo, (err) => {
+              if (err) throw err;
+            });
+          } catch (e) {
+            console.error('Failed to rename company logo.', e);
+            business.logo = originalLogo;
+          }
+        }
+
         if (business.dataFile) {
           try {
             // Parse csv file
@@ -59,7 +74,8 @@ export class InsightsV1Controller {
               'typeOfService', 'obs'
             ];
 
-            const data = await this.parser.parseLocations(business.dataFile, headers, ';');
+            const data = await this.parser.parseLocations(
+                business.dataFile, headers, ';');
 
             data.list.forEach(location => {
               if (location.company == business.company) {
