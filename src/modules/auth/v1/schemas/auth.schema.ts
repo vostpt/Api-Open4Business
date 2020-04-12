@@ -19,6 +19,11 @@ export const AuthSchema = new Schema({
     required: false,
     default: false
   },
+  isAdmin: {
+    type: Boolean,
+    required: false,
+    default: false
+  },
   numberOfLogins: {
     type: Number,
     required: true

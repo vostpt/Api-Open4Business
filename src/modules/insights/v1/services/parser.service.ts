@@ -9,13 +9,17 @@ export class ParseService {
   constructor(
       private readonly csvParser: CsvParser, private readonly logger: Logger) {}
 
-  async parseLocations(filename: string, headers: string[]) {
+  async parseLocations(filename: string, headers: string[], separator: string) {
     // Create stream from file (or get it from S3)
 
-    const stream = fs.createReadStream(filename);  // __dirname + '/some.csv'
+    const stream = fs.createReadStream(filename, {encoding:  'utf8'});  // __dirname + '/some.csv'
+    console.log(stream);
+
     const data = await this.csvParser.parse(stream, LocationModel, null, null, {
-      separator: ',', 
+      encoding: 'utf8',
+      separator: separator, 
       mapHeaders: ({ header, index }) => {
+        console.log('mapHeaders', header, index, headers[index]);
         return headers[index];
       },
 

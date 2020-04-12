@@ -8,6 +8,7 @@ export class AuthModel {
   deactivatedAt: number;
   deletedAt: number;
   isActive: boolean;
+  isAdmin: boolean;
   activationToken: string;
 
   constructor(data: AuthModel) {
@@ -20,6 +21,7 @@ export class AuthModel {
     this.deactivatedAt = data.deactivatedAt;
     this.deletedAt = data.deletedAt;
     this.isActive = data.isActive;
+    this.isAdmin = data.isAdmin || false;
     this.activationToken = data.activationToken;
   }
 }

@@ -40,7 +40,8 @@ export class SignUpService {
       confirmationCode,
       createdAt: nowTimestamp,
       confirmationCodeCreatedAt: nowTimestamp,
-      isActive: true,
+      isActive: false,
+      isAdmin: false,
       deletedAt: null,
       deactivatedAt: null,
       activationToken
