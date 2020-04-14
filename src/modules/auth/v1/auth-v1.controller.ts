@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Logger, Post, Put, Req, Res} from '@nestjs/common';
+import {Body, Controller, Get, Logger, Post, Put, Req, Res, Query} from '@nestjs/common';
 import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags, ApiUnauthorizedResponse} from '@nestjs/swagger';
 import {Response} from 'express';
 
@@ -45,10 +45,9 @@ export class AuthV1Controller {
   @ApiUnauthorizedResponse({ description: 'Token isn\'t valid' })
   @ApiQuery({ name: 'token', description: 'The token to validate', type: String, required: true })
   async verifyToken(
-    @Req() req: any,
+    @Query('token') token: string,
     @Res() res: Response
   ): Promise<object> {
-    const token = req.token;
     const response = await this.verifyTokenService.verifyToken(token, res);
     return res.status(response.resultCode).send(response);
   }
