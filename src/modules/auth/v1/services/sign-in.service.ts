@@ -2,7 +2,7 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Request } from 'express';
 import { REQUEST } from '@nestjs/core';
 import { promisify } from 'util';
-import * as uuidv1 from 'uuid/v1'; // based in timestamp
+import {v1 as uuidv1} from 'uuid';
 import { sign } from 'jsonwebtoken';
 import * as dateformat from 'dateformat';
 import { compare } from 'bcrypt';

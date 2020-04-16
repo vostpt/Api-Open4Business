@@ -1,24 +1,27 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { CsvParser } from 'nest-csv-parser';
 import { ExtractTokenMiddleware } from '../../core/middleware/extract-token.middleware';
 import { BusinessSchema } from '../../core/schemas/business.schema';
 import { LocationSchema } from '../../core/schemas/location.schema';
 import { BusinessService } from '../../core/services/business.service';
 import { LocationService } from '../../core/services/location.service';
-import { InsightsV1Controller } from './insights-v1.controller';
-import { MailSenderService } from '../../core/services/mailsender.service';
+import { ParseService } from './services/parser.service';
+import { BusinessesV1Controller } from './businesses-v1.controller';
+
+
 
 @Module({
   imports: [
     MongooseModule.forFeature([{name: 'Location', schema: LocationSchema}]),
     MongooseModule.forFeature([{name: 'Business', schema: BusinessSchema}]),
   ],
-  controllers: [InsightsV1Controller],
-  providers: [LocationService, BusinessService, MailSenderService],
+  controllers: [BusinessesV1Controller],
+  providers: [LocationService, ParseService, CsvParser, BusinessService],
   exports: []
 })
-export class InsightsV1Module implements NestModule {
+export class BusinessesV1Module implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(ExtractTokenMiddleware).forRoutes(InsightsV1Controller);
+    consumer.apply(ExtractTokenMiddleware).forRoutes(BusinessesV1Controller);
   }
 }

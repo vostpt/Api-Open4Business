@@ -16,6 +16,7 @@ import { AuthDocumentation } from './modules/auth/auth.swagger';
 import { AdminDocumentation } from './modules/admin/admin.swagger';
 import { SwaggerOptionsHelper } from './modules/core/helpers/swagger-options.helper';
 import { InsightsDocumentation } from './modules/insights/insights.swagger';
+import { BusinessesDocumentation } from './modules/businesses/businesses.swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -49,6 +50,7 @@ async function bootstrap() {
   AdminDocumentation.init(app, routesTree, swaggerCustomization);
   AuthDocumentation.init(app, routesTree, swaggerCustomization);
   InsightsDocumentation.init(app, routesTree, swaggerCustomization);
+  BusinessesDocumentation.init(app, routesTree, swaggerCustomization);
 
   app.get(Logger).log(`Running on port ${environment.port}`);
   await app.listen(environment.port);

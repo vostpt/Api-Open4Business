@@ -19,6 +19,10 @@ export class Environment {
   jwtPrivateKey: Buffer;
   jwtPublicKey: Buffer
   defaultTimeout: number;
+  smtpHost: string;
+  smtpEmail: string;
+  smtpPassword: string;
+  adminEmail: string;
 }
 
 export const environment: Environment = {
@@ -35,5 +39,9 @@ export const environment: Environment = {
   uploadsPath: process.env.UPLOADS_PATH,
   jwtPrivateKey: readFileSync((join(__dirname, '../', '/auth-keys/jwtRS256.key'))),
   jwtPublicKey: readFileSync((join(__dirname, '../', '/auth-keys/jwtRS256.key.pub'))),
-  defaultTimeout: Number(process.env.DEFAULT_TIMEOUT || 90)
+  defaultTimeout: Number(process.env.DEFAULT_TIMEOUT || 90),
+  smtpHost: process.env.SMTP_HOST,
+  smtpEmail: process.env.SMTP_EMAIL,
+  smtpPassword: process.env.SMTP_PASSWORD,
+  adminEmail: process.env.ADMIN_EMAIL
 };

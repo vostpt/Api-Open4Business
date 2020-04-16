@@ -10,14 +10,16 @@ import { CoreModule } from './modules/core/core.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { InsightsModule } from './modules/insights/insights.module';
+import { BusinessesModule } from './modules/businesses/businesses.module';
+
 
 @Module({
   imports: [
     CoreModule,
-
     AdminModule,
     AuthModule,
     InsightsModule,
+    BusinessesModule,
     MongooseModule.forRootAsync({
       useClass: MongooseConfig
     })

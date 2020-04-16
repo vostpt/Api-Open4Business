@@ -1,18 +1,13 @@
-import {Body, Controller, Get, Logger, Post, Res, UploadedFile, UseInterceptors} from '@nestjs/common';
-import {FileInterceptor} from '@nestjs/platform-express';
-import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags} from '@nestjs/swagger';
+import {Body, Controller, Get, Logger, Post, Res} from '@nestjs/common';
+import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags} from '@nestjs/swagger';
 import {Response} from 'express';
-import * as fs from 'fs';
-import {v1 as uuidv1} from 'uuid';
-import {multerOptions} from '../../../config/multer.config';
 import {ResponseModel} from '../../auth/v1/models/response.model';
 import {getResponse} from '../../core/helpers/response.helper';
+import {BusinessModel} from '../../core/models/business.model';
 import {SuccessResponseModel} from '../../core/models/success-response.model';
-import {BusinessModel} from './models/business.model';
-import {BusinessService} from './services/business.service';
-import {LocationService} from './services/location.service';
-import {ParseService} from './services/parser.service';
-import { environment } from './../../../config/environment';
+import {BusinessService} from '../../core/services/business.service';
+import {LocationService} from '../../core/services/location.service';
+import {MailSenderService} from '../../core/services/mailsender.service';
 
 @Controller('insights/v1')
 @ApiBearerAuth()
@@ -22,99 +17,51 @@ export class InsightsV1Controller {
   constructor(
       private readonly locationService: LocationService,
       private readonly businessService: BusinessService,
-      private readonly parser: ParseService, private readonly logger: Logger) {
+      private readonly mailService: MailSenderService,
+      private readonly logger: Logger) {
     this.logger.log('Init insights controller', InsightsV1Controller.name);
   }
 
   @Post('business')
-  @ApiOperation({summary: 'Create a business'})
-  @ApiCreatedResponse({description: 'Successfully created business', type: BusinessModel})
-  @ApiBadRequestResponse({description: 'Invalid company info'})
+  @ApiOperation({summary: 'Register a business'})
+  @ApiCreatedResponse({description: 'Successfully registered business', type: BusinessModel})
+  @ApiBadRequestResponse({description: 'Invalid business info'})
   async createBusiness(@Body() business: BusinessModel, @Res() res: Response):
       Promise<object> {
-    let response: ResponseModel;
+    let response: ResponseModel = null;
+    const newBusiness = await this.businessService.createBusiness(business);
 
-    try {
-      const newBusiness = await this.businessService.createBusiness(business);
+    // Send notification email to admin
 
-      if (newBusiness) {
-        if (business.logo) {
-          const originalLogo = business.logo;
+    // const locals = {
+    //   emailToSend: 'pedro.santos@domatica.pt',
+    //   userEmail: business.email,
+    //   userName: business.company,
+    //   activationUrl: 'http://localhost:8000/api/v1/auth'
+    // };
 
-          try {  
-            const dotIndex = originalLogo.lastIndexOf('.');
-            business.logo = `${environment.uploadsPath}/company-${newBusiness.businessId}${originalLogo.substr(dotIndex, originalLogo.length - dotIndex)}`;
+    // this.mailService.sendSignUpNotificationEmail(locals);
 
-            fs.rename(originalLogo, business.logo, (err) => {
-              if (err) throw err;
-            });
-          } catch (e) {
-            console.error('Failed to rename company logo.', e);
-            business.logo = originalLogo;
-          }
-        }
+    response = getResponse(200, {data: newBusiness});
 
-        if (business.dataFile) {
-          try {
-            // Parse csv file
-            const headers = [
-              'locationId',    'company',
-              'store',         'address',
-              'parish',        'council',
-              'district',      'zipCode',
-              'latitude',      'longitude',
-              'phone',         'sector',
-              'schedule1',     'schedule1Dow',
-              'schedule1Type', 'schedule1Period',
-              'schedule2',     'schedule2Dow',
-              'schedule2Type', 'schedule2Period',
-              'schedule3',     'schedule3Dow',
-              'schedule3Type', 'schedule3Period',
-              'byAppointment', 'contactForSchedule',
-              'typeOfService', 'obs'
-            ];
+    // try {
+    //   const newBusiness = await
+    //   this.businessService.createBusiness(business);
 
-            const data = await this.parser.parseLocations(
-                business.dataFile, headers, ';');
+    //   if (newBusiness) {
+    //     response = getResponse(200, {data: {business: newBusiness}});
+    //   } else {
+    //     this.logger.error('Invalid company info.');
+    //     response = getResponse(400, {resultMessage: 'Invalid company
+    //     info.'});
+    //   }
+    // } catch (e) {
+    //   this.logger.error('Error creating business', e);
+    //   response =
+    //       getResponse(400, {resultMessage: 'Invalid company info.', data:
+    //       e});
+    // }
 
-            data.list.forEach(location => {
-              if (location.company == business.company) {
-                location.locationId = uuidv1();
-                this.locationService.createLocation(location);
-              }
-            });
-
-            response = getResponse(200, {data: newBusiness});
-          } catch (e) {
-            console.error(
-                'Failed to parse locations in: ' + business.dataFile, e);
-
-            response = getResponse(200, {data: newBusiness, resultMessage: e});
-          }
-        }
-      } else {
-        this.logger.error('Invalid company info.');
-        response = getResponse(400, {resultMessage: 'Invalid company info.'});
-      }
-    } catch (e) {
-      this.logger.error('Error creating business', e);
-      response =
-          getResponse(400, {resultMessage: 'Invalid company info.', data: e});
-    }
-
-    return res.status(response.resultCode).send(response);
-  }
-
-  @Post('file')
-  @ApiOperation({summary: 'Upload file'})
-  @UseInterceptors(FileInterceptor('file', multerOptions('tmp')))
-  @ApiOkResponse({description: 'File uploaded successfully'})
-  @ApiBadRequestResponse({description: 'Invalid File info'})
-  @ApiResponse({status: 412, description: 'Missing required parameters'})
-  async importLocations(@Res() res: any, @UploadedFile() file) {
-    console.log(file);
-
-    const response = getResponse(200, {data: {id: file.path}});
     return res.status(response.resultCode).send(response);
   }
 

@@ -10,10 +10,8 @@ export class InsightsDocumentation {
       .setTitle(insightsMenu.name)
       .setDescription(insightsMenu.description)
       .setVersion(insightsMenu.children[0].version)
-      .addBearerAuth()
       .build();
-      console.log(insightsMenu);
-      console.log(insightsOptions);
+      
     const insightsDocument = SwaggerModule.createDocument(app, insightsOptions, { include: [InsightsV1Module] });
     SwaggerModule.setup(`api/${insightsMenu.children[0].path}`, app, insightsDocument, swaggerCustomization);
   }

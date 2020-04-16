@@ -41,6 +41,17 @@ export default function getRoutesTree(): Route[] {
           'version': '1.0.0'
         }
       ]
+    },
+    {
+      'name': 'Businesses',
+      'description': 'All things related to a Business',
+      'children': [
+        {
+          'name': 'BusinessesV1Module',
+          'path': 'businesses/v1',
+          'version': '1.0.0'
+        }
+      ]
     }
   ];
 }

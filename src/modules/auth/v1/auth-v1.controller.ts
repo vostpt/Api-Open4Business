@@ -25,6 +25,8 @@ import {VerifyTokenService} from './services/verify-token.service';
 @Controller('auth/v1')
 @ApiTags('Auth')
 export class AuthV1Controller {
+  private loggerContext = 'AuthController';
+
   constructor(
       private readonly changePasswordService: ChangePasswordService,
       private readonly confirmAccountService: ConfirmAccountService,
@@ -37,6 +39,39 @@ export class AuthV1Controller {
       private readonly signUpService: SignUpService,
       private readonly verifyTokenService: VerifyTokenService) {
     this.logger.log('Init auth controller', AuthV1Controller.name);
+  }
+
+  @Get('session')
+  @ApiOperation({ summary: 'Verify if the session is still valid' })
+  @ApiOkResponse({ description: 'Session is valid', type: SuccessResponseModel })
+  @ApiUnauthorizedResponse({ description: 'Session isn\'t valid' })
+  async verifySession(
+    @Req() req: any,
+    @Res() res: Response
+  ): Promise<object> {
+    let {authorization} = req.headers;
+
+    if (!authorization) {
+      this.logger.error(
+          `Authorization header not found ${JSON.stringify(req.headers)}`,
+          this.loggerContext);
+
+          return res.status(401).send('Authorization header not found');
+    }
+
+    const regex = /^Bearer\s([^.]+(?:\.[^.]+){2})$/gm;
+
+    if (!regex.test(authorization)) {
+      this.logger.error(
+          `Authorization header doesn\'t match regex ${authorization}`,
+          this.loggerContext);
+          return res.status(401).send('Invalid Authorization header');
+    }
+
+    authorization = authorization.replace('Bearer ', '');
+
+    const response = await this.verifyTokenService.verifyToken(authorization, res);
+    return res.status(response.resultCode).send(response);
   }
 
   @Get('token')

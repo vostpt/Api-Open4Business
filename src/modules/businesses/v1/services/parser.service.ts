@@ -1,7 +1,8 @@
-import {Injectable, Logger} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
-import {CsvParser} from 'nest-csv-parser';
-import {LocationModel} from '../models/location.model';
+import { CsvParser } from 'nest-csv-parser';
+import { LocationModel } from '../../../core/models/location.model';
+
 
 
 @Injectable()
@@ -12,13 +13,14 @@ export class ParseService {
   async parseLocations(filename: string, headers: string[], separator: string) {
     // Create stream from file (or get it from S3)
 
-    const stream = fs.createReadStream(filename, {encoding:  'utf8'});  // __dirname + '/some.csv'
+    const stream = fs.createReadStream(
+        filename, {encoding: 'utf8'});  // __dirname + '/some.csv'
     console.log(stream);
 
     const data = await this.csvParser.parse(stream, LocationModel, null, null, {
       encoding: 'utf8',
-      separator: separator, 
-      mapHeaders: ({ header, index }) => {
+      separator: separator,
+      mapHeaders: ({header, index}) => {
         console.log('mapHeaders', header, index, headers[index]);
         return headers[index];
       },
