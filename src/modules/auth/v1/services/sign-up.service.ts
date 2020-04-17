@@ -56,6 +56,6 @@ export class SignUpService {
       return getResponse(400, { resultMessage: 'Error creating the user' });
     }
 
-    return getResponse(200);
+    return getResponse(200, {data: newAuth});
   }
 }

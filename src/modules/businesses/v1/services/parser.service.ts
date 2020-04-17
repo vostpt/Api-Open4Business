@@ -21,7 +21,6 @@ export class ParseService {
       encoding: 'utf8',
       separator: separator,
       mapHeaders: ({header, index}) => {
-        console.log('mapHeaders', header, index, headers[index]);
         return headers[index];
       },
 

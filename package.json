@@ -35,6 +35,7 @@
     "dateformat": "^3.0.3",
     "dotenv": "^8.2.0",
     "ejs": "^3.0.1",
+    "generate-password": "^1.5.1",
     "helmet": "^3.21.3",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^5.9.1",

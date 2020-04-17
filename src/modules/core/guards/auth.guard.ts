@@ -1,6 +1,6 @@
-import {CanActivate, ExecutionContext, HttpService, Injectable, Logger} from '@nestjs/common';
-import {Observable, of, throwError} from 'rxjs';
-import {catchError, map, mergeMap} from 'rxjs/operators';
+import { CanActivate, ExecutionContext, HttpService, Injectable, Logger } from '@nestjs/common';
+import { Observable, of, throwError } from 'rxjs';
+import { catchError, map, mergeMap } from 'rxjs/operators';
 
 
 @Injectable()
@@ -44,9 +44,10 @@ export class AuthGuard implements CanActivate {
             }),
             map(
                 res => {
-                  if (res.data.data.userId) {
-                    request.context.userId = res.data.data.userId;
+                  if (res.data.data.authId) {
+                    request.context = {...request.context, ...res.data.data};
                   }
+                  
                   return true;
                 },
                 () => {

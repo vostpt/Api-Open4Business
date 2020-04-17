@@ -19,8 +19,22 @@ export class BusinessService {
     return business.save();
   }
 
-  async findBusiness(body) {
-    return this.businessModel.findOne(body).exec();
+  findBusiness(filter, cb) {
+    // this.businessModel.findOne(filter, function(err, business){
+    //   if (err) {
+    //     console.error('business not found!');
+    //     return null;
+    //   }
+
+    //   console.log('business', business);
+    //   return business;
+    // });
+
+    return this.businessModel.findOne(filter).exec(cb);
+  }
+
+  find(filter) {
+    return this.businessModel.findOne(filter).exec();
   }
 
   async updateBusiness(body: {query: object; update: object}) {

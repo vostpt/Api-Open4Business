@@ -1,5 +1,6 @@
 export class LocationModel {
   locationId: string;
+  businessId: string;
   company: string;
   store: string;
   address: string;
@@ -31,4 +32,5 @@ export class LocationModel {
   contactForSchedule: string;
   typeOfService: string;
   obs: string;
+  audit: object;
 }

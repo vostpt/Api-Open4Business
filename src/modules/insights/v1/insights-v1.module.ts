@@ -7,6 +7,7 @@ import { BusinessService } from '../../core/services/business.service';
 import { LocationService } from '../../core/services/location.service';
 import { InsightsV1Controller } from './insights-v1.controller';
 import { MailSenderService } from '../../core/services/mailsender.service';
+import { AccountService } from '../../businesses/v1/services/account.service';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { MailSenderService } from '../../core/services/mailsender.service';
     MongooseModule.forFeature([{name: 'Business', schema: BusinessSchema}]),
   ],
   controllers: [InsightsV1Controller],
-  providers: [LocationService, BusinessService, MailSenderService],
+  providers: [LocationService, BusinessService, MailSenderService, AccountService],
   exports: []
 })
 export class InsightsV1Module implements NestModule {

@@ -71,6 +71,6 @@ export class VerifyTokenService {
     }
 
     res.header('Authorization', token);
-    return getResponse(200);
+    return getResponse(200, {data: {name: auth.name, authId: decoded.authId, isAdmin: auth.isAdmin, createdAt: decoded.createdAt, ttl: decoded.ttl }});
   }
 }

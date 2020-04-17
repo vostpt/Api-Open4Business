@@ -27,15 +27,15 @@ export class MailSenderService {
   sendConfirmAccountEmail(locals) {
     const templateUrl = join(__dirname, '../../../assets/templates/confirmAccount.ejs');
 
-    renderFile(templateUrl, { confirmationCode: locals.confirmationCode, activationUrl: locals.activationUrl }, (err, data) => {
+    renderFile(templateUrl, { emailToSend: locals.emailToSend, password: locals.password, headerImageUrl: "https://info.vost.pt/wp-content/uploads/2020/04/Open4Business_Header_NewLogo.png"}, (err, data) => {
       if (err) {
-        this.logger.error('Error while trying to render file confirmAccount.ejs', this.loggerContext);
+        this.logger.error('Error while trying to render file confirmAccount.ejs', this.loggerContext, err);
         return;
       } else {
         const mainOptions = {
-          from: '',
+          from: '"Open4Business by VOSTPT"<no-reply@vost.pt>',
           to: locals.emailToSend,
-          subject: 'Confirm Account',
+          subject: 'Conta registada',
           html: data
         };
         return this.transport.sendMail(mainOptions, (error) => {
@@ -184,15 +184,15 @@ export class MailSenderService {
 
   sendAccountConfirmedEmail(locals) {
     const templateUrl = join(__dirname, '../../../assets/templates/accountConfirmedEmail.ejs');
-    renderFile(templateUrl, { loginUrl: locals.loginUrl }, (err, data) => {
+    renderFile(templateUrl, { loginUrl: locals.loginUrl, headerImageUrl: "https://info.vost.pt/wp-content/uploads/2020/04/Open4Business_Header_NewLogo.png" }, (err, data) => {
       if (err) {
-        this.logger.error('Error while trying to render file accountConfirmedEmail.ejs', this.loggerContext);
+        this.logger.error('Error while trying to render file accountConfirmedEmail.ejs', this.loggerContext, err);
         return;
       } else {
         const mainOptions = {
-          from: '',
+          from: '"Open4Business by VOSTPT"<no-reply@vost.pt>',
           to: locals.emailToSend,
-          subject: 'Account confirmed',
+          subject: 'Conta confirmada',
           html: data
         };
         return this.transport.sendMail(mainOptions, (error) => {

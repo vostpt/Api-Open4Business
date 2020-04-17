@@ -1,21 +1,20 @@
-import {Body, Controller, Get, Logger, Post, Res, UploadedFile, UseInterceptors, UseGuards} from '@nestjs/common';
-import {FileInterceptor} from '@nestjs/platform-express';
-import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags} from '@nestjs/swagger';
-import {Response} from 'express';
-import * as fs from 'fs';
-import {v1 as uuidv1} from 'uuid';
-import {multerOptions} from '../../../config/multer.config';
-import {ResponseModel} from '../../auth/v1/models/response.model';
-import {getResponse} from '../../core/helpers/response.helper';
-import {SuccessResponseModel} from '../../core/models/success-response.model';
-import {BusinessModel} from '../../core/models/business.model';
-
-import {ParseService} from './services/parser.service';
+import { Body, Controller, Get, Logger, Param, Post, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
+import { v1 as uuidv1 } from 'uuid';
 import { environment } from '../../../config/environment';
-import { LocationService } from '../../core/services/location.service';
-import { BusinessService } from '../../core/services/business.service';
+import { multerOptions } from '../../../config/multer.config';
+import { ResponseModel } from '../../auth/v1/models/response.model';
 import { AuthGuard } from '../../core/guards/auth.guard';
-import { BusinessLocationModel } from '../../core/models/business-location.model';
+import { getResponse } from '../../core/helpers/response.helper';
+import { BusinessModel } from '../../core/models/business.model';
+import { SuccessResponseModel } from '../../core/models/success-response.model';
+import { BusinessService } from '../../core/services/business.service';
+import { LocationService } from '../../core/services/location.service';
+import { MailSenderService } from '../../core/services/mailsender.service';
+import { AccountService } from './services/account.service';
+import { ParseService } from './services/parser.service';
 
 @Controller('businesses/v1')
 @ApiBearerAuth()
@@ -23,89 +22,144 @@ import { BusinessLocationModel } from '../../core/models/business-location.model
 @ApiTags('Businesses')
 export class BusinessesV1Controller {
   constructor(
+      private readonly accountService: AccountService,
       private readonly locationService: LocationService,
       private readonly businessService: BusinessService,
+      private readonly mailService: MailSenderService,
       private readonly parser: ParseService, private readonly logger: Logger) {
     this.logger.log('Init insights controller', BusinessesV1Controller.name);
   }
 
-  @Post('business')
-  @ApiOperation({summary: 'Create a business'})
-  @ApiCreatedResponse({description: 'Successfully created business', type: BusinessModel})
-  @ApiBadRequestResponse({description: 'Invalid company info'})
-  async createBusiness(@Body() business: BusinessLocationModel, @Res() res: Response):
+  @Post('business/logo')
+  @ApiOperation({summary: 'Update business logo'})
+  @ApiCreatedResponse({description: 'Successfully updated business logo', type: BusinessModel})
+  @ApiBadRequestResponse({description: 'Invalid business info'})
+  async updateBusinessLogo(
+    @Param() logo: string, 
+    @Req() req, 
+    @Res() res: Response):
       Promise<object> {
-    let response: ResponseModel;
+    const email = req.context.authId;
+
+    if (!logo) {
+      return res.status(400).send(
+          getResponse(400, {resultMessage: 'Missing "logo".'}));
+    }
 
     try {
-      const newBusiness = await this.businessService.createBusiness(business);
+      const updatedBusiness = await this.businessService.updateBusiness(
+          {query: {email: email}, update: {logo: logo}});
 
-      if (newBusiness) {
-        if (business.logo) {
-          const originalLogo = business.logo;
+      return res.status(200).send(getResponse(200, {data: updatedBusiness}));
+    } catch (e) {
+      return res.status(400).send(
+          getResponse(400, {resultMessage: 'In development!', data: e}));
+    }
+  }
 
-          try {  
-            const dotIndex = originalLogo.lastIndexOf('.');
-            business.logo = `${environment.uploadsPath}/company-${newBusiness.businessId}${originalLogo.substr(dotIndex, originalLogo.length - dotIndex)}`;
+  @Post('locations')
+  @ApiOperation({summary: 'Add locations to a business'})
+  @ApiCreatedResponse({description: 'Successfully added locations to a business', type: ResponseModel})
+  @ApiBadRequestResponse({description: 'Invalid company info'})
+  async createBusiness(
+    @Body('email') personEmail: string, 
+    @Body('name') personName: string, 
+    @Body('dataFile') dataFile: string, 
+    @Req() req, 
+    @Res() res: Response
+  ): Promise<object> {
+    let response: ResponseModel;
+    const email = req.context.authId;
 
-            fs.rename(originalLogo, business.logo, (err) => {
-              if (err) throw err;
-            });
-          } catch (e) {
-            console.error('Failed to rename company logo.', e);
-            business.logo = originalLogo;
-          }
-        }
+    if (!dataFile) {
+      return res.status(400).send(
+          getResponse(400, {resultMessage: 'Missing "dataFile".'}));
+    }
 
-        if (business.dataFile) {
-          try {
-            // Parse csv file
-            const headers = [
-              'locationId',    'company',
-              'store',         'address',
-              'parish',        'council',
-              'district',      'zipCode',
-              'latitude',      'longitude',
-              'phone',         'sector',
-              'schedule1',     'schedule1Dow',
-              'schedule1Type', 'schedule1Period',
-              'schedule2',     'schedule2Dow',
-              'schedule2Type', 'schedule2Period',
-              'schedule3',     'schedule3Dow',
-              'schedule3Type', 'schedule3Period',
-              'byAppointment', 'contactForSchedule',
-              'typeOfService', 'obs'
-            ];
+    try {
+      const business: BusinessModel =
+          await this.businessService.find({email: email});
+      console.log('business', business);
 
-            const data = await this.parser.parseLocations(
-                business.dataFile, headers, ';');
+      if (business) {
+        // Parse csv file
+        const headers = [
+          'locationId',    'company',
+          'store',         'address',
+          'parish',        'council',
+          'district',      'zipCode',
+          'latitude',      'longitude',
+          'phone',         'sector',
+          'schedule1',     'schedule1Dow',
+          'schedule1Type', 'schedule1Period',
+          'schedule2',     'schedule2Dow',
+          'schedule2Type', 'schedule2Period',
+          'schedule3',     'schedule3Dow',
+          'schedule3Type', 'schedule3Period',
+          'byAppointment', 'contactForSchedule',
+          'typeOfService', 'obs'
+        ];
 
-            data.list.forEach(location => {
-              if (location.company == business.company) {
-                location.locationId = uuidv1();
-                this.locationService.createLocation(location);
-              }
-            });
+        const data = await this.parser.parseLocations(dataFile, headers, ',');
+        let counter = 0;
+        data.list.forEach(location => {
+          location.locationId = uuidv1();
+          location.businessId = business.businessId;
+          location.audit = {
+            personName,
+            personEmail,
+            updatedAt: Math.round(+new Date() / 1000)
+          };
 
-            response = getResponse(200, {data: newBusiness});
-          } catch (e) {
-            console.error(
-                'Failed to parse locations in: ' + business.dataFile, e);
+          this.locationService.createLocation(location);
 
-            response = getResponse(200, {data: newBusiness, resultMessage: e});
-          }
-        }
-      } else {
-        this.logger.error('Invalid company info.');
-        response = getResponse(400, {resultMessage: 'Invalid company info.'});
+          counter++
+        });
+
+        response = getResponse(200, {data: {locations: counter}});
       }
     } catch (e) {
-      this.logger.error('Error creating business', e);
-      response =
-          getResponse(400, {resultMessage: 'Invalid company info.', data: e});
+      response = getResponse(
+          400, {data: e, resultMessage: 'Failed to import locations.'});
     }
 
     return res.status(response.resultCode).send(response);
+  }
+
+  @Post('confirm')
+  @ApiOperation({summary: 'Confirm business'})
+  @ApiOkResponse({description: 'Business confirmed'})
+  @ApiBadRequestResponse({description: 'Invalid token'})
+  @ApiResponse({status: 412, description: 'Missing required parameters'})
+  async confirmBusiness(
+      @Body('token') token, @Body('confirmationCode') confirmationCode,
+      @Req() req, @Res() res: any) {
+    const isAdmin = req.context.isAdmin;
+
+    if (!isAdmin) {
+      return res.status(400).send(getResponse(
+          400, {resultMessage: 'Only admin can activate accounts.'}));
+    }
+
+    let response = getResponse(200);
+
+    try {
+      await (await this.accountService.confirmAccount(token, confirmationCode))
+          .toPromise();
+
+      // Send notification email to user
+      const locals = {
+        emailToSend: environment.adminEmail,
+        loginUrl: `${environment.portal}/auth/signin`
+      };
+
+      this.mailService.sendAccountConfirmedEmail(locals);
+    } catch (e) {
+      response = getResponse(400, {data: e});
+    }
+
+    return res.status(response.resultCode).send(response);
+    ;
   }
 
   @Post('file')
@@ -124,10 +178,29 @@ export class BusinessesV1Controller {
   @Get('locations')
   @ApiOperation({summary: 'Get all locations from a business'})
   @ApiOkResponse({description: 'Returns list of locations', type: SuccessResponseModel})
-  async getLocations(@Res() res: Response): Promise<object> {
-    const locations = await this.locationService.getLocations({});
+  async getLocations(
+    @Req() req,
+    @Res() res: Response
+  ): Promise<object> {
+    const email = req.context.authId;
 
-    const response = {data: {locations}};
-    return res.status(200).send(response);
+    let response: ResponseModel = getResponse(200, {data: {locations: []}});
+
+    try {
+      const business: BusinessModel =
+          await this.businessService.find({email: email});
+
+      if (business) {
+        const locations = await this.locationService.getLocations(
+            {businessId: business.businessId});
+
+        response = getResponse(200, {data: {locations}});
+      }
+
+    } catch (e) {
+      response = getResponse(404, {data: e});
+    }
+
+    return res.status(response.resultCode).send(response);
   }
 }

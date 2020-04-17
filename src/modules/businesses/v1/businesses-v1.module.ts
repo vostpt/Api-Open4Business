@@ -8,6 +8,8 @@ import { BusinessService } from '../../core/services/business.service';
 import { LocationService } from '../../core/services/location.service';
 import { ParseService } from './services/parser.service';
 import { BusinessesV1Controller } from './businesses-v1.controller';
+import { AccountService } from './services/account.service';
+import { MailSenderService } from '../../core/services/mailsender.service';
 
 
 
@@ -17,7 +19,7 @@ import { BusinessesV1Controller } from './businesses-v1.controller';
     MongooseModule.forFeature([{name: 'Business', schema: BusinessSchema}]),
   ],
   controllers: [BusinessesV1Controller],
-  providers: [LocationService, ParseService, CsvParser, BusinessService],
+  providers: [LocationService, ParseService, CsvParser, BusinessService, AccountService, MailSenderService],
   exports: []
 })
 export class BusinessesV1Module implements NestModule {

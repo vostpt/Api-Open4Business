@@ -2,6 +2,7 @@ import {Schema} from 'mongoose';
 
 export const LocationSchema = new Schema({
   locationId: {type: String, unique: true, required: true},
+  businessId: {type: String, required: true},
   company: {type: String, required: true},
   store: {type: String, required: true},
   address: {type: String, required: false},
@@ -28,5 +29,6 @@ export const LocationSchema = new Schema({
   byAppointment: {type: String, required: false},
   contactForSchedule: {type: String, required: false},
   typeOfService: {type: String, required: false},
-  obs: {type: String, required: false}
+  obs: {type: String, required: false},
+  audit: {type: Object, required: false}
 });
