@@ -60,7 +60,7 @@
             <td rowspan="1" colspan="1"
               style="font-family: sans-serif;padding: 1rem;vertical-align: top;text-align: left">
               <% route.children.forEach(function(child){ %>
-              <a style="margin: 0 0 15px; text-decoration: none; color: #0090d4;" href="api/docs/<%= child.path %>">
+              <a style="margin: 0 0 15px; text-decoration: none; color: #0090d4;" href="/api/docs/<%= child.path %>">
                 <%= child.version %>
               </a>
               <% }); %>

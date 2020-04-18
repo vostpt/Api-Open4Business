@@ -1,6 +1,9 @@
 .git
 .DS_Store
+.vscode
 .dockerignore
 .env
 Dockerfile
 node_modules
+uploads
+dist

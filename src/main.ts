@@ -45,12 +45,12 @@ async function bootstrap() {
 
   const customCss = SwaggerOptionsHelper.getDefaultImage();
   const routesTree = getRoutesTree();
-  const swaggerCustomization = { customCss, customSiteTitle: 'Accounts API', customfavIcon: '/assets/images/favicon.ico' };
+  const swaggerCustomization = { customCss, customfavIcon: '/assets/images/favicon.ico' };
 
-  AdminDocumentation.init(app, routesTree, swaggerCustomization);
-  AuthDocumentation.init(app, routesTree, swaggerCustomization);
-  InsightsDocumentation.init(app, routesTree, swaggerCustomization);
-  BusinessesDocumentation.init(app, routesTree, swaggerCustomization);
+  AdminDocumentation.init(app, routesTree, {...swaggerCustomization, customSiteTitle: 'O4B - Admin API'});
+  AuthDocumentation.init(app, routesTree, {...swaggerCustomization, customSiteTitle: 'O4B - Auth API'});
+  InsightsDocumentation.init(app, routesTree, {...swaggerCustomization, customSiteTitle: 'O4B - Insights API'});
+  BusinessesDocumentation.init(app, routesTree, {...swaggerCustomization, customSiteTitle: 'O4B - Businesses API'});
 
   app.get(Logger).log(`Running on port ${environment.port}`);
   await app.listen(environment.port);
