@@ -15,6 +15,6 @@ export class BusinessesDocumentation {
       console.log(businessesMenu);
       console.log(businessesOptions);
     const businessesDocument = SwaggerModule.createDocument(app, businessesOptions, { include: [BusinessesV1Module] });
-    SwaggerModule.setup(`api/${businessesMenu.children[0].path}`, app, businessesDocument, swaggerCustomization);
+    SwaggerModule.setup(`api/docs/${businessesMenu.children[0].path}`, app, businessesDocument, swaggerCustomization);
   }
 }

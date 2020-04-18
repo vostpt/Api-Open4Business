@@ -10,6 +10,14 @@ export const AuthSchema = new Schema({
     type: String,
     required: false
   },
+  name: {
+    type: String,
+    required: false
+  },
+  phone: {
+    type: String,
+    required: false
+  },
   activationToken: {
     type: String,
     required: false

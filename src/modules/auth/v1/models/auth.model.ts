@@ -1,6 +1,8 @@
 export class AuthModel {
   authId: string;
   password: string;
+  name: string;
+  phone: string;
   numberOfLogins: number;
   confirmationCode: string;
   createdAt: number;
@@ -14,6 +16,8 @@ export class AuthModel {
   constructor(data: AuthModel) {
     this.authId = data.authId;
     this.password = data.password;
+    this.name = data.name;
+    this.phone = data.phone;
     this.numberOfLogins = data.numberOfLogins;
     this.confirmationCode = data.confirmationCode;
     this.createdAt = data.createdAt;

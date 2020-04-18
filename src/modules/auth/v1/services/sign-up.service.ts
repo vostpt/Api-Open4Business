@@ -36,6 +36,8 @@ export class SignUpService {
     const newAuth = new AuthModel({
       authId: body.authId,
       password: body.password || '',
+      name: body.name || '',
+      phone: body.phone || '',
       numberOfLogins: 0,
       confirmationCode,
       createdAt: nowTimestamp,

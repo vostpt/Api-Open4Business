@@ -1,17 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { hash } from 'bcrypt';
+import {Injectable, Logger} from '@nestjs/common';
+import {InjectModel} from '@nestjs/mongoose';
+import {hash} from 'bcrypt';
+import {Model} from 'mongoose';
 
-import { AuthModel } from '../models/auth.model';
+import {AuthModel} from '../models/auth.model';
 
 @Injectable()
 export class AuthsService {
   constructor(
-    @InjectModel('Auth') private readonly authModel: Model<AuthModel>,
-    private readonly logger: Logger
-  ) {
-  }
+      @InjectModel('Auth') private readonly authModel: Model<AuthModel>,
+      private readonly logger: Logger) {}
 
   async createAuth(data: AuthModel): Promise<AuthModel> {
     this.logger.setContext(AuthsService.name);
@@ -35,7 +33,14 @@ export class AuthsService {
     return this.authModel.findOne(body).exec();
   }
 
-  async updateAuth(body: { query: object; update: object }) {
+  async getAll(filter) {
+    return this.authModel.find(filter)
+        .select(['authId', 'name', 'phone', 'isAdmin'])
+        .sort('name')
+        .exec();
+  }
+
+  async updateAuth(body: {query: object; update: object}) {
     if (body.update['password']) {
       let hashedPassword;
       try {

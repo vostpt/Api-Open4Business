@@ -1,7 +1,8 @@
-import {Body, Controller, Get, Logger, Post, Put, Req, Res, Query} from '@nestjs/common';
-import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags, ApiUnauthorizedResponse} from '@nestjs/swagger';
+import {Body, Controller, Get, Logger, Post, Put, Query, Req, Res} from '@nestjs/common';
+import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags, ApiUnauthorizedResponse} from '@nestjs/swagger';
 import {Response} from 'express';
 
+import {getResponse} from '../../core/helpers/response.helper';
 import {CreatedSuccessResponseModel} from '../../core/models/created-success-response.model';
 import {SuccessResponseModel} from '../../core/models/success-response.model';
 
@@ -13,8 +14,10 @@ import {SignInResponseModel} from './models/sign-in-response.model';
 import {SignInModel} from './models/sign-in.model';
 import {SignUpResponseModel} from './models/sign-up-response.model';
 import {SignUpModel} from './models/sign-up.model';
+import {AuthsService} from './services/auths.service';
 import {ChangePasswordService} from './services/change-password.service';
 import {ConfirmAccountService} from './services/confirm-account.service';
+import {DecodeTokenService} from './services/decode-token.service';
 import {LogoutService} from './services/logout.service';
 import {RecoverPasswordService} from './services/recover-password.service';
 import {ResendConfirmAccountEmailService} from './services/resend-confirm-account-email.service';
@@ -22,12 +25,13 @@ import {SignInService} from './services/sign-in.service';
 import {SignUpService} from './services/sign-up.service';
 import {VerifyTokenService} from './services/verify-token.service';
 
-@Controller('auth/v1')
+@Controller('api/auth/v1')
 @ApiTags('Auth')
 export class AuthV1Controller {
   private loggerContext = 'AuthController';
 
   constructor(
+      private readonly authService: AuthsService,
       private readonly changePasswordService: ChangePasswordService,
       private readonly confirmAccountService: ConfirmAccountService,
       private readonly logger: Logger,
@@ -37,18 +41,16 @@ export class AuthV1Controller {
           ResendConfirmAccountEmailService,
       private readonly signInService: SignInService,
       private readonly signUpService: SignUpService,
-      private readonly verifyTokenService: VerifyTokenService) {
+      private readonly verifyTokenService: VerifyTokenService,
+      private readonly decodeTokenService: DecodeTokenService) {
     this.logger.log('Init auth controller', AuthV1Controller.name);
   }
 
   @Get('session')
-  @ApiOperation({ summary: 'Verify if the session is still valid' })
-  @ApiOkResponse({ description: 'Session is valid', type: SuccessResponseModel })
-  @ApiUnauthorizedResponse({ description: 'Session isn\'t valid' })
-  async verifySession(
-    @Req() req: any,
-    @Res() res: Response
-  ): Promise<object> {
+  @ApiOperation({summary: 'Verify if the session is still valid'})
+  @ApiOkResponse({description: 'Session is valid', type: SuccessResponseModel})
+  @ApiUnauthorizedResponse({description: 'Session isn\'t valid'})
+  async verifySession(@Req() req: any, @Res() res: Response): Promise<object> {
     let {authorization} = req.headers;
 
     if (!authorization) {
@@ -56,7 +58,7 @@ export class AuthV1Controller {
           `Authorization header not found ${JSON.stringify(req.headers)}`,
           this.loggerContext);
 
-          return res.status(401).send('Authorization header not found');
+      return res.status(401).send('Authorization header not found');
     }
 
     const regex = /^Bearer\s([^.]+(?:\.[^.]+){2})$/gm;
@@ -65,12 +67,13 @@ export class AuthV1Controller {
       this.logger.error(
           `Authorization header doesn\'t match regex ${authorization}`,
           this.loggerContext);
-          return res.status(401).send('Invalid Authorization header');
+      return res.status(401).send('Invalid Authorization header');
     }
 
     authorization = authorization.replace('Bearer ', '');
 
-    const response = await this.verifyTokenService.verifyToken(authorization, res);
+    const response =
+        await this.verifyTokenService.verifyToken(authorization, res);
     return res.status(response.resultCode).send(response);
   }
 
@@ -161,6 +164,164 @@ export class AuthV1Controller {
     @Res() res: Response
   ): Promise<object> {
     const response = await this.changePasswordService.changePassword(body);
+    return res.status(response.resultCode).send(response);
+  }
+
+  @Put('info')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change an account\'s password' })
+  @ApiOkResponse({ description: 'Successfully changed the password', type: SuccessResponseModel })
+  @ApiBadRequestResponse({ description: 'Missing parameters or the password and confirmPassword don\'t match' })
+  @ApiUnauthorizedResponse({ description: 'Invalid authorization header' })
+  async updateAuth(
+    @Body('authId') authId: string,
+    @Body('email') email: string,
+    @Body('name') name: string,
+    @Body('phone') phone: string,
+    @Req() req,
+    @Res() res: Response
+  ): Promise<object> {
+    // decode the token
+    const decoded = await this.decodeTokenService.decodeToken(req['token']);
+
+    if (decoded === null) {
+      return res.status(401).send(
+          getResponse(401, {resultMessage: 'Invalid token'}));
+    }
+
+    const query = {authId: decoded.authId};
+
+    // Only admin can change other users info
+    if (authId && authId != decoded.authId) {
+      const admin = await this.authService.findAuth({authId: decoded.authId});
+
+      if (!admin || !admin.isAdmin) {
+        return res.status(403).send(getResponse(
+            403,
+            {resultMessage: 'You don\'t have permission to do this action.'}));
+      }
+
+      query.authId = authId;
+    }
+
+
+    let update = {};
+
+    if (email) {
+      update = {
+        ...update,
+        ...{
+          authId: email
+        }
+      };
+    }
+
+    if (name) {
+      update = {...update, name};
+    }
+
+    if (phone) {
+      update = {...update, phone};
+    }
+
+    console.log('updateAuth', query, update);
+
+    const changes = await this.authService.updateAuth({query, update});
+    const auth = await this.authService.findAuth({authId: query.authId});
+
+    const response = getResponse(200, {
+      data: {
+        changes,
+        info: {email: auth.authId, name: auth.name, phone: auth.phone}
+      }
+    });
+    return res.status(response.resultCode).send(response);
+  }
+
+  @Get('infos')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get account info' })
+  @ApiOkResponse({ description: 'Successfully get account info', type: SuccessResponseModel })
+  @ApiUnauthorizedResponse({ description: 'Invalid authorization header' })
+  async getInfo(
+    // @Query('authId') authId: string,
+    @Req() req,
+    @Res() res: Response
+  ): Promise<object> {
+    console.log('getInfo');
+    const authId = null;
+    // decode the token
+    const decoded = await this.decodeTokenService.decodeToken(req['token']);
+
+
+    if (decoded === null) {
+      return res.status(401).send(
+          getResponse(401, {resultMessage: 'Invalid token'}));
+    }
+
+    const query = {authId: decoded.authId};
+
+    // Only admin can change other users info
+    if (authId && authId != decoded.authId) {
+      const admin = await this.authService.findAuth({authId: decoded.authId});
+
+      if (!admin || !admin.isAdmin) {
+        return res.status(403).send(getResponse(
+            403,
+            {resultMessage: 'You don\'t have permission to do this action.'}));
+      }
+
+      query.authId = authId;
+    }
+
+    const auth = await this.authService.findAuth({authId: query.authId});
+
+    const response = getResponse(200, {
+      data: {
+        info: {
+          email: auth.authId,
+          name: auth.name,
+          phone: auth.phone,
+          isAdmin: auth.isAdmin
+        }
+      }
+    });
+    return res.status(response.resultCode).send(response);
+  }
+
+  @Get('users')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all users' })
+  @ApiOkResponse({ description: 'Successfully get all users', type: SuccessResponseModel })
+  @ApiUnauthorizedResponse({ description: 'Invalid authorization header' })
+  @ApiForbiddenResponse({ description: 'Forbiden' })
+  async getUsers(
+    @Query('search') search: string,
+    @Req() req,
+    @Res() res: Response
+  ): Promise<object> {
+    console.log('getUsers');
+    // decode the token
+    const decoded = await this.decodeTokenService.decodeToken(req['token']);
+
+    if (decoded === null) {
+      return res.status(401).send(
+          getResponse(401, {resultMessage: 'Invalid token'}));
+    }
+
+    const admin = await this.authService.findAuth({authId: decoded.authId});
+
+    if (!admin || !admin.isAdmin) {
+      return res.status(403).send(getResponse(
+          403,
+          {resultMessage: 'You don\'t have permission to do this action.'}));
+    }
+
+    const exp = new RegExp('.*' + search + '.*', 'i');
+    const filter = search ? {$or:[ { authId: {$regex: exp} }, { name: {$regex: exp} }]} : {};
+    const users = await this.authService.getAll(filter);
+
+    const response = getResponse(200, {data: {users}});
     return res.status(response.resultCode).send(response);
   }
 

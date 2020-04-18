@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Logger, Param, Post, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Post, Req, Res, UploadedFile, UseGuards, UseInterceptors, Query } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
@@ -16,7 +16,7 @@ import { MailSenderService } from '../../core/services/mailsender.service';
 import { AccountService } from './services/account.service';
 import { ParseService } from './services/parser.service';
 
-@Controller('businesses/v1')
+@Controller('api/businesses/v1')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
 @ApiTags('Businesses')
@@ -179,6 +179,7 @@ export class BusinessesV1Controller {
   @ApiOperation({summary: 'Get all locations from a business'})
   @ApiOkResponse({description: 'Returns list of locations', type: SuccessResponseModel})
   async getLocations(
+    @Query('search') search: string,
     @Req() req,
     @Res() res: Response
   ): Promise<object> {
@@ -191,8 +192,11 @@ export class BusinessesV1Controller {
           await this.businessService.find({email: email});
 
       if (business) {
-        const locations = await this.locationService.getLocations(
-            {businessId: business.businessId});
+        const exp = new RegExp('.*' + search + '.*', 'i');
+        let filter = search ? {$or:[ { authId: {$regex: exp} }, { name: {$regex: exp} }]} : {};
+        filter = {...filter, ...{businessId: business.businessId}};
+
+        const locations = await this.locationService.getLocations(filter);
 
         response = getResponse(200, {data: {locations}});
       }

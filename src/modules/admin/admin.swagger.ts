@@ -13,6 +13,6 @@ export class AdminDocumentation {
       .addBearerAuth()
       .build();
     const adminDocument = SwaggerModule.createDocument(app, adminOptions, { include: [AdminModule] });
-    SwaggerModule.setup(`api/${adminMenu.children[0].path}`, app, adminDocument, swaggerCustomization);
+    SwaggerModule.setup(`api/docs/${adminMenu.children[0].path}`, app, adminDocument, swaggerCustomization);
   }
 }

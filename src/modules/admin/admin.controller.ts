@@ -5,7 +5,7 @@ import { Response } from 'express';
 import { getResponse } from '../core/helpers/response.helper';
 
 
-@Controller('admin')
+@Controller('api/admin')
 @ApiBearerAuth()
 @ApiTags('Admin')
 export class AdminController {

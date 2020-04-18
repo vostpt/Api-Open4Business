@@ -13,6 +13,6 @@ export class InsightsDocumentation {
       .build();
       
     const insightsDocument = SwaggerModule.createDocument(app, insightsOptions, { include: [InsightsV1Module] });
-    SwaggerModule.setup(`api/${insightsMenu.children[0].path}`, app, insightsDocument, swaggerCustomization);
+    SwaggerModule.setup(`api/docs/${insightsMenu.children[0].path}`, app, insightsDocument, swaggerCustomization);
   }
 }

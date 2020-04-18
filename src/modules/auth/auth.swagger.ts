@@ -13,6 +13,6 @@ export class AuthDocumentation {
       .addBearerAuth()
       .build();
     const authDocument = SwaggerModule.createDocument(app, authOptions, { include: [AuthV1Module] });
-    SwaggerModule.setup(`api/${authMenu.children[0].path}`, app, authDocument, swaggerCustomization);
+    SwaggerModule.setup(`api/docs/${authMenu.children[0].path}`, app, authDocument, swaggerCustomization);
   }
 }

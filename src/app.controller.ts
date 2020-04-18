@@ -14,7 +14,7 @@ export class AppController {
     return this.appService.getIndexPages(req, res);
   }
 
-  @Get('api*')
+  @Get('api/docs/*')
   getIndexPages(
     @Req() req: any,
     @Res() res: any
@@ -29,5 +29,5 @@ export class AppController {
   ): any {
     return res.sendFile(`assets/${req.params.folder}/${req.params.asset}`, { root: __dirname });
   }
-
+  
 }

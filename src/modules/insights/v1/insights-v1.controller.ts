@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Logger, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Post, Res, Query } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import * as generator from 'generate-password';
@@ -14,7 +14,7 @@ import { MailSenderService } from '../../core/services/mailsender.service';
 
 
 
-@Controller('insights/v1')
+@Controller('api/insights/v1')
 @ApiBearerAuth()
 // @UseGuards(AuthGuard)
 @ApiTags('Insights')
@@ -95,8 +95,13 @@ export class InsightsV1Controller {
   @Get('locations')
   @ApiOperation({summary: 'Get locations'})
   @ApiOkResponse({description: 'Request is valid', type: SuccessResponseModel})
-  async getLocations(@Res() res: Response): Promise<object> {
-    const locations = await this.locationService.getLocations({});
+  async getLocations(
+    @Query('search') search: string,
+    @Res() res: Response): Promise<object> {
+    const exp = new RegExp('.*' + search + '.*', 'i');
+    const filter = search ? {$or:[ { authId: {$regex: exp} }, { name: {$regex: exp} }]} : {};
+
+    const locations = await this.locationService.getLocations(filter);
 
     const response = {data: {locations}};
     return res.status(200).send(response);
