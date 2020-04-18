@@ -13,38 +13,48 @@ import { LocationService } from '../../core/services/location.service';
 import { MailSenderService } from '../../core/services/mailsender.service';
 
 
-
 @Controller('api/insights/v1')
 @ApiBearerAuth()
 // @UseGuards(AuthGuard)
 @ApiTags('Insights')
 export class InsightsV1Controller {
   constructor(
-      private readonly accountService: AccountService,
-      private readonly locationService: LocationService,
-      private readonly businessService: BusinessService,
-      private readonly mailService: MailSenderService,
-      private readonly logger: Logger) {
+    private readonly accountService: AccountService,
+    private readonly locationService: LocationService,
+    private readonly businessService: BusinessService,
+    private readonly mailService: MailSenderService,
+    private readonly logger: Logger) {
     this.logger.log('Init insights controller', InsightsV1Controller.name);
   }
 
   @Post('business')
-  @ApiOperation({summary: 'Register a business'})
-  @ApiCreatedResponse({description: 'Successfully registered business', type: BusinessModel})
-  @ApiBadRequestResponse({description: 'Invalid business info'})
-  async createBusiness(@Body() business: BusinessModel, @Res() res: Response):
-      Promise<object> {
+  @ApiOperation({ summary: 'Register a business' })
+  @ApiCreatedResponse({ description: 'Successfully registered business', type: BusinessModel })
+  @ApiBadRequestResponse({ description: 'Invalid business info' })
+  async createBusiness(@Body() business: BusinessModel, @Res() res: Response): Promise<object> {
     let response: ResponseModel = null;
-    const newBusiness = await this.businessService.createBusiness(business);
+    let newBusiness;
+    try {
+      newBusiness = await this.businessService.createBusiness(business);
+    } catch (e) {
+      if (e.code === 11000) {
+        this.logger.error('Duplicated email when on signup', e);
+        response = getResponse(409, { resultMessage: 'Already exists' });
+      }
+      else {
+        this.logger.error('Error on signup', e);
+        response = getResponse(400, { data: e });
+      }
+
+      return res.status(response.resultCode).send(response);
+    }
 
     try {
       const authId = business.email;
-      const password = generator.generate({length: 8, numbers: true});
+      const password = generator.generate({ length: 8, numbers: true });
       const name = business.name;
 
-      const account = await (await this.accountService.createAccount(
-                                 authId, password, name))
-                          .toPromise();
+      const account = await (await this.accountService.createAccount(authId, password, name)).toPromise();
 
       // Send notification email to admin
       const locals = {
@@ -62,14 +72,14 @@ export class InsightsV1Controller {
         password: password,
       };
 
-      this.mailService.sendConfirmAccountEmail(userLocals);
+      //this.mailService.sendConfirmAccountEmail(userLocals);
     } catch (e) {
-      response = getResponse(400, {data: e});
+      response = getResponse(400, { data: e });
     }
 
 
 
-    response = getResponse(200, {data: newBusiness});
+    response = getResponse(200, { data: newBusiness });
 
     // try {
     //   const newBusiness = await
@@ -93,17 +103,17 @@ export class InsightsV1Controller {
   }
 
   @Get('locations')
-  @ApiOperation({summary: 'Get locations'})
-  @ApiOkResponse({description: 'Request is valid', type: SuccessResponseModel})
+  @ApiOperation({ summary: 'Get locations' })
+  @ApiOkResponse({ description: 'Request is valid', type: SuccessResponseModel })
   async getLocations(
     @Query('search') search: string,
     @Res() res: Response): Promise<object> {
     const exp = new RegExp('.*' + search + '.*', 'i');
-    const filter = search ? {$or:[ { authId: {$regex: exp} }, { name: {$regex: exp} }]} : {};
+    const filter = search ? { $or: [{ authId: { $regex: exp } }, { name: { $regex: exp } }] } : {};
 
     const locations = await this.locationService.getLocations(filter);
 
-    const response = {data: {locations}};
+    const response = { data: { locations } };
     return res.status(200).send(response);
   }
 }
