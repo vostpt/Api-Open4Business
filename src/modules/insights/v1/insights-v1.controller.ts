@@ -72,7 +72,7 @@ export class InsightsV1Controller {
         password: password,
       };
 
-      //this.mailService.sendConfirmAccountEmail(userLocals);
+      this.mailService.sendConfirmAccountEmail(userLocals);
     } catch (e) {
       response = getResponse(400, { data: e });
     }
