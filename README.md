@@ -22,9 +22,23 @@ This is a critical priority project. All resources should be focused on this, ap
 
 Create .env file in the root.
 ``` 
-APP_URL=http://localhost:5000
-PORT=5000
-LOG_LEVEL=Open4Business:LOG|WARNING|ERROR|DEBUG TODO
+PORT=8000
+TOKEN_TTL=172800
+MONGO_DB_HOST=localhost
+MONGO_DB_PORT=27017
+MONGO_DB_USER=dev
+MONGO_DB_PASS=YOUR_PASS_HERE
+MONGO_DB_DATABASE=open4business
+MONGO_DB_INITIAL_CONNECTION_ATTEMPTS=10
+MONGO_DB_INITIAL_CONNECTION_INTERVAL=1000
+DEFAULT_TIMEOUT=90
+UPLOADS_PATH=uploads
+LOG_LEVEL=Open4Business:LOG|WARNING|ERROR|DEBUG
+SMTP_HOST=host
+SMTP_EMAIL=email
+SMTP_PASSWORD=password
+ADMIN_EMAIL=admin_email
+PORTAL=http://localhost:4200
 ```
 Allowed log levels: LOG|WARNING|ERROR|DEBUG
 values in the array can be any combination of 'log', 'error', 'warn', 'debug', and 'verbose'.

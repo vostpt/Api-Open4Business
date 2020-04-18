@@ -34,7 +34,7 @@ export class AuthGuard implements CanActivate {
     const headers = {authorization};
 
     return this.httpService
-        .get(`http://localhost:${process.env.PORT}/auth/v1/session`, {headers})
+        .get(`http://localhost:${process.env.PORT}/api/auth/v1/session`, {headers})
         .pipe(
             catchError(err => {
               return throwError(err);

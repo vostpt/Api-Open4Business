@@ -20,17 +20,20 @@ import { LogoutService } from './services/logout.service';
 
 import { SessionSchema } from './schemas/session.schema';
 import { AuthSchema } from './schemas/auth.schema';
+import { BusinessService } from '../../core/services/business.service';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: 'Session', schema: SessionSchema }]),
     MongooseModule.forFeature([{ name: 'Auth', schema: AuthSchema }]),
+    MongooseModule.forFeature([{ name: 'Business', schema: AuthSchema }]),
   ],
   controllers: [
     AuthV1Controller
   ],
   providers: [
     AuthsService,
+    BusinessService,
     ChangePasswordService,
     ConfirmAccountService,
     DecodeTokenService,

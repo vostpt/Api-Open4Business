@@ -8,14 +8,14 @@ export class AccountService {
 
     async createAccount(authId: string, password: string, name: string) {
 
-      return this.http.post(`http://localhost:${process.env.PORT}/auth/v1/signup`, {authId, password, name})
+      return this.http.post(`http://localhost:${process.env.PORT}/api/auth/v1/signup`, {authId, password, name})
               .pipe(
                   map(response => response.data)
               ); 
     }
 
   async confirmAccount(token: string, confirmationCode: string) {
-    return this.http.put(`http://localhost:${process.env.PORT}/auth/v1/confirm`, {token, confirmationCode})
+    return this.http.put(`http://localhost:${process.env.PORT}/api/auth/v1/confirm`, {token, confirmationCode})
             .pipe(
                 map(response => response.data)
             ); 

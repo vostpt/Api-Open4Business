@@ -24,6 +24,7 @@ import {ResendConfirmAccountEmailService} from './services/resend-confirm-accoun
 import {SignInService} from './services/sign-in.service';
 import {SignUpService} from './services/sign-up.service';
 import {VerifyTokenService} from './services/verify-token.service';
+import { BusinessService } from '../../core/services/business.service';
 
 @Controller('api/auth/v1')
 @ApiTags('Auth')
@@ -31,6 +32,7 @@ export class AuthV1Controller {
   private loggerContext = 'AuthController';
 
   constructor(
+      private readonly businessService: BusinessService,
       private readonly authService: AuthsService,
       private readonly changePasswordService: ChangePasswordService,
       private readonly confirmAccountService: ConfirmAccountService,
@@ -178,6 +180,7 @@ export class AuthV1Controller {
     @Body('email') email: string,
     @Body('name') name: string,
     @Body('phone') phone: string,
+    @Body('company') company: string,
     @Req() req,
     @Res() res: Response
   ): Promise<object> {
@@ -204,38 +207,59 @@ export class AuthV1Controller {
       query.authId = authId;
     }
 
+    try {
+      let update = {};
 
-    let update = {};
-
-    if (email) {
-      update = {
-        ...update,
-        ...{
-          authId: email
-        }
-      };
-    }
-
-    if (name) {
-      update = {...update, name};
-    }
-
-    if (phone) {
-      update = {...update, phone};
-    }
-
-    console.log('updateAuth', query, update);
-
-    const changes = await this.authService.updateAuth({query, update});
-    const auth = await this.authService.findAuth({authId: query.authId});
-
-    const response = getResponse(200, {
-      data: {
-        changes,
-        info: {email: auth.authId, name: auth.name, phone: auth.phone}
+      if (email) {
+        update = {
+          ...update,
+          ...{
+            authId: email
+          }
+        };
       }
-    });
-    return res.status(response.resultCode).send(response);
+  
+      if (name) {
+        update = {...update, name};
+      }
+  
+      if (phone) {
+        update = {...update, phone};
+      }
+  
+      console.log('updateAuth', query, update);
+  
+      let changes = await this.authService.updateAuth({query, update});
+      console.log('auth update', changes);
+  
+      if (company) {
+        changes = await this.businessService.updateBusiness({query: {email}, update: {name: company}});
+        console.log('company update', changes);
+      }
+  
+      const auth = await this.authService.findAuth(query);
+  
+      const response = getResponse(200, {
+        data: {
+          info: {email: auth.authId, name: auth.name, phone: auth.phone}
+        }
+      });
+  
+      return res.status(response.resultCode).send(response);  
+    } catch (e) {
+      let response;
+
+      if (e.code === 11000) {
+        this.logger.error('Duplicated email', e);
+        response = getResponse(409, { resultMessage: 'Email already exists' });
+      }
+      else {
+        this.logger.error('Error on signup', e);
+        response = getResponse(400, { data: e });
+      }
+  
+      return res.status(response.resultCode).send(response);
+    }   
   }
 
   @Get('info')
@@ -275,6 +299,7 @@ export class AuthV1Controller {
     }
 
     const auth = await this.authService.findAuth({authId: query.authId});
+    const company = await this.businessService.find({email: query.authId});
 
     const response = getResponse(200, {
       data: {
@@ -283,7 +308,8 @@ export class AuthV1Controller {
           name: auth.name,
           phone: auth.phone,
           isAdmin: auth.isAdmin
-        }
+        },
+        company
       }
     });
     return res.status(response.resultCode).send(response);
