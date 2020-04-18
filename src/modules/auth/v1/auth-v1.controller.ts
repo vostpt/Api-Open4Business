@@ -238,7 +238,7 @@ export class AuthV1Controller {
     return res.status(response.resultCode).send(response);
   }
 
-  @Get('infos')
+  @Get('info')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get account info' })
   @ApiOkResponse({ description: 'Successfully get account info', type: SuccessResponseModel })
