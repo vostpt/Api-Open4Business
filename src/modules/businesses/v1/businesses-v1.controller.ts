@@ -189,43 +189,46 @@ export class BusinessesV1Controller {
     const email = req.context.authId;
     const isAdmin = req.context.isAdmin;
 
-    let filter = {};
-    if (!isAdmin) {
-      filter = {email: email};
-    }
-
     let response: ResponseModel = getResponse(200, {data: {locations: []}});
 
     try {
-      const business: BusinessModel =
-          await this.businessService.find(filter);
+      let filter = {};
 
-      if (business) {
-        const exp = new RegExp('.*' + search + '.*', 'i');
-        let filter = search ?
-            {$or: [
-              {company: {$regex: exp}}, 
-              {store: {$regex: exp}}, 
-              {address: {$regex: exp}}, 
-              {fregesia: {$regex: exp}}, 
-              {concelho: {$regex: exp}}, 
-              {district: {$regex: exp}}
-            ]} :
-            {};
-        filter = {
-          ...filter,
-          ...{
-            businessId: business.businessId
+      if (!isAdmin) {
+        const business: BusinessModel = await this.businessService.find({email});
+
+          if (!business) {
+            response = getResponse(404);
+            return res.status(response.resultCode).send(response);
           }
-        };
 
-        console.log('search locations', filter);
-
-        const locations = await this.locationService.getLocations(filter);
-
-        response = getResponse(200, {data: {locations}});
+          filter = {
+            ...filter,
+            ...{
+              businessId: business.businessId
+            }
+          };
       }
+      
+      if (search) {
+        const exp = new RegExp('.*' + search + '.*', 'i');
+        filter = {
+          ...filter, 
+          $or: [
+            {company: {$regex: exp}}, 
+            {store: {$regex: exp}}, 
+            {address: {$regex: exp}}, 
+            {fregesia: {$regex: exp}}, 
+            {concelho: {$regex: exp}}, 
+            {district: {$regex: exp}}
+          ]
+        };  
+      }
+      
+      console.log('search locations', filter);
 
+      const locations = await this.locationService.getLocations(filter);
+      response = getResponse(200, {data: {locations}});
     } catch (e) {
       response = getResponse(404, {data: e});
     }
