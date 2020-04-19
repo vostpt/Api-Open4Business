@@ -1,20 +1,23 @@
-import { Body, Controller, Get, Logger, Param, Post, Req, Res, UploadedFile, UseGuards, UseInterceptors, Query } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Response } from 'express';
-import { v1 as uuidv1 } from 'uuid';
-import { environment } from '../../../config/environment';
-import { multerOptions } from '../../../config/multer.config';
-import { ResponseModel } from '../../auth/v1/models/response.model';
-import { AuthGuard } from '../../core/guards/auth.guard';
-import { getResponse } from '../../core/helpers/response.helper';
-import { BusinessModel } from '../../core/models/business.model';
-import { SuccessResponseModel } from '../../core/models/success-response.model';
-import { BusinessService } from '../../core/services/business.service';
-import { LocationService } from '../../core/services/location.service';
-import { MailSenderService } from '../../core/services/mailsender.service';
-import { AccountService } from './services/account.service';
-import { ParseService } from './services/parser.service';
+import {Body, Controller, Get, Logger, Param, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors} from '@nestjs/common';
+import {FileInterceptor} from '@nestjs/platform-express';
+import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags} from '@nestjs/swagger';
+import {Response} from 'express';
+import {v1 as uuidv1} from 'uuid';
+
+import {environment} from '../../../config/environment';
+import {multerOptions} from '../../../config/multer.config';
+import {ResponseModel} from '../../auth/v1/models/response.model';
+import {AuthGuard} from '../../core/guards/auth.guard';
+import {getResponse} from '../../core/helpers/response.helper';
+import {BusinessModel} from '../../core/models/business.model';
+import {LocationModel} from '../../core/models/location.model';
+import {SuccessResponseModel} from '../../core/models/success-response.model';
+import {BusinessService} from '../../core/services/business.service';
+import {LocationService} from '../../core/services/location.service';
+import {MailSenderService} from '../../core/services/mailsender.service';
+
+import {AccountService} from './services/account.service';
+import {ParseService} from './services/parser.service';
 
 @Controller('api/businesses/v1')
 @ApiBearerAuth()
@@ -79,7 +82,6 @@ export class BusinessesV1Controller {
     try {
       const business: BusinessModel =
           await this.businessService.find({email: email});
-      console.log('business', business);
 
       if (business) {
         // Parse csv file
@@ -102,7 +104,7 @@ export class BusinessesV1Controller {
 
         const data = await this.parser.parseLocations(dataFile, headers, ',');
         let counter = 0;
-        data.list.forEach(location => {
+        data.list.forEach((location: LocationModel) => {
           location.locationId = uuidv1();
           location.businessId = business.businessId;
           location.audit = {
@@ -111,6 +113,7 @@ export class BusinessesV1Controller {
             updatedAt: Math.round(+new Date() / 1000)
           };
 
+          console.log('location', location);
           this.locationService.createLocation(location);
 
           counter++
@@ -184,17 +187,39 @@ export class BusinessesV1Controller {
     @Res() res: Response
   ): Promise<object> {
     const email = req.context.authId;
+    const isAdmin = req.context.isAdmin;
+
+    let filter = {};
+    if (!isAdmin) {
+      filter = {email: email};
+    }
 
     let response: ResponseModel = getResponse(200, {data: {locations: []}});
 
     try {
       const business: BusinessModel =
-          await this.businessService.find({email: email});
+          await this.businessService.find(filter);
 
       if (business) {
         const exp = new RegExp('.*' + search + '.*', 'i');
-        let filter = search ? {$or:[ { authId: {$regex: exp} }, { name: {$regex: exp} }]} : {};
-        filter = {...filter, ...{businessId: business.businessId}};
+        let filter = search ?
+            {$or: [
+              {company: {$regex: exp}}, 
+              {store: {$regex: exp}}, 
+              {address: {$regex: exp}}, 
+              {fregesia: {$regex: exp}}, 
+              {concelho: {$regex: exp}}, 
+              {district: {$regex: exp}}
+            ]} :
+            {};
+        filter = {
+          ...filter,
+          ...{
+            businessId: business.businessId
+          }
+        };
+
+        console.log('search locations', filter);
 
         const locations = await this.locationService.getLocations(filter);
 
