@@ -254,7 +254,7 @@ export class AuthV1Controller {
         response = getResponse(409, { resultMessage: 'Email already exists' });
       }
       else {
-        this.logger.error('Error on signup', e);
+        this.logger.error('Error on update user info', e);
         response = getResponse(400, { data: e });
       }
   
