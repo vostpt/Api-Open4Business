@@ -35,7 +35,6 @@ export class AuthsService {
 
   async getAll(filter) {
     return this.authModel.find(filter)
-        .select(['authId', 'name', 'phone', 'isAdmin'])
         .sort('name')
         .exec();
   }
