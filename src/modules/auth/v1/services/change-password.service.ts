@@ -8,6 +8,8 @@ import { AuthsService } from './auths.service';
 import { getResponse } from '../../../core/helpers/response.helper';
 import { SessionsService } from './sessions.service';
 import { DecodeTokenService } from './decode-token.service';
+import { ChangePasswordModel } from '../models/change-password.model';
+import { AuthModel } from '../models/auth.model';
 
 @Injectable()
 export class ChangePasswordService {
@@ -22,7 +24,7 @@ export class ChangePasswordService {
     promisify(compare);
   }
 
-  async changePassword(body) {
+  async changePassword(body: ChangePasswordModel) {
     this.logger.setContext(ChangePasswordService.name);
 
     if (!this.req['token'] && !body.token) {
@@ -37,10 +39,10 @@ export class ChangePasswordService {
     }
 
     // find the auth
-    let auth;
+    let currentUser: AuthModel;
     try {
-      auth = await this.authsService.findAuth({ authId: decoded.authId });
-      if (!auth) {
+      currentUser = await this.authsService.findAuth({ authId: decoded.authId });
+      if (!currentUser) {
         this.logger.error('No auth found for that token');
         return getResponse(401);
       }
@@ -49,7 +51,36 @@ export class ChangePasswordService {
       return getResponse(500);
     }
 
+    console.log('currentUser', currentUser.authId, currentUser.isAdmin);
+
+    if (body.authId && !currentUser.isAdmin) {
+      return getResponse(403);
+    }
+
+    let auth: AuthModel;
+
+    console.log('body.authId', body.authId);
+
+    if (body.authId && body.authId != currentUser.authId) {
+      try {
+        auth = await this.authsService.findAuth({ authId: body.authId });
+        if (!auth) {
+          this.logger.error('No auth found for that token');
+          return getResponse(401);
+        }
+      } catch (e) {
+        this.logger.error('Error accessing authschema');
+        return getResponse(500);
+      }
+    } else {
+      auth = currentUser;
+    }
+
+    console.log('auth', auth.authId);
+
     if (body.currentPassword) {
+      console.log('check currentPassword');
+
       // check if the current password is valid
       try {
         const result = await compare(body.currentPassword, auth.password);
@@ -66,7 +97,7 @@ export class ChangePasswordService {
 
     // update the auth
     try {
-      await this.authsService.updateAuth({ query: { authId: decoded.authId }, update: { password: body.password } });
+      await this.authsService.updateAuth({ query: { authId: auth.authId }, update: { password: body.password } });
     } catch (e) {
       this.logger.error(`Error saving the Auth ${e.message}`);
       return getResponse(400, { resultMessage: 'Error creating the user' });
@@ -74,7 +105,7 @@ export class ChangePasswordService {
 
     // if the token isnt sent in the body
     // delete all sessions with the token from the header
-    if (!body.token) {
+    if (!body.token && !body.authId) {
       let sessions;
       try {
         sessions = await this.sessionsService.findSessions({ authId: decoded.authId, sessionId: { $ne: decoded.sessionId } });

@@ -226,6 +226,10 @@ export class AuthV1Controller {
       if (phone) {
         update = {...update, phone};
       }
+
+      if (company) {
+        update = {...update, company};
+      }
   
       console.log('updateAuth', query, update);
   
@@ -233,7 +237,7 @@ export class AuthV1Controller {
       console.log('auth update', changes);
   
       if (company) {
-        changes = await this.businessService.updateBusiness({query: {email}, update: {name: company}});
+        changes = await this.businessService.updateBusiness({query: {email}, update});
         console.log('company update', changes);
       }
   
@@ -268,12 +272,11 @@ export class AuthV1Controller {
   @ApiOkResponse({ description: 'Successfully get account info', type: SuccessResponseModel })
   @ApiUnauthorizedResponse({ description: 'Invalid authorization header' })
   async getInfo(
-    // @Query('authId') authId: string,
+    @Query('authId') authId: string,
     @Req() req,
     @Res() res: Response
   ): Promise<object> {
     console.log('getInfo');
-    const authId = null;
     // decode the token
     const decoded = await this.decodeTokenService.decodeToken(req['token']);
 
