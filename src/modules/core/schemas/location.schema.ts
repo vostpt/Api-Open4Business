@@ -30,5 +30,6 @@ export const LocationSchema = new Schema({
   contactForSchedule: {type: String, required: false},
   typeOfService: {type: String, required: false},
   obs: {type: String, required: false},
-  audit: {type: Object, required: false}
+  isActive: {type: Boolean, required: false, default: false},
+  audit: {type: Object, required: false},
 });

@@ -32,5 +32,6 @@ export class LocationModel {
   contactForSchedule: string;
   typeOfService: string;
   obs: string;
+  isActive: boolean;
   audit: object;
 }

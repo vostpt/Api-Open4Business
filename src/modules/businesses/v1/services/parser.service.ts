@@ -15,7 +15,6 @@ export class ParseService {
 
     const stream = fs.createReadStream(
         filename, {encoding: 'utf8'});  // __dirname + '/some.csv'
-    console.log(stream);
 
     const data = await this.csvParser.parse(stream, LocationModel, null, null, {
       encoding: 'utf8',
@@ -23,7 +22,6 @@ export class ParseService {
       mapHeaders: ({header, index}) => {
         return headers[index];
       },
-
     });
 
     return data;

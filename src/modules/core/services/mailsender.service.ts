@@ -203,4 +203,53 @@ export class MailSenderService {
       }
     });
   }
+
+  sendImportNotificationEmail(locals) {
+    const templateUrl = join(__dirname, '../../../assets/templates/importNotification.ejs');
+
+    renderFile(templateUrl, { ...locals, headerImageUrl: "https://info.vost.pt/wp-content/uploads/2020/04/Open4Business_Header_NewLogo.png"}, (err, data) => {
+      if (err) {
+        this.logger.error('Error while trying to render file confirmAccount.ejs', this.loggerContext, err);
+        return;
+      } else {
+        const mainOptions = {
+          from: '"Open4Business by VOSTPT"<no-reply@vost.pt>',
+          to: locals.emailToSend,
+          subject: 'Lojas Importadas: ' + locals.company,
+          html: data
+        };
+        return this.transport.sendMail(mainOptions, (error) => {
+          if (error) {
+            this.logger.error('Error while trying to send confirmation account email', this.loggerContext);
+          }
+        });
+      }
+    });
+  }
+
+  sendImportConfirmationEmail(locals) {
+    const templateUrl = join(__dirname, '../../../assets/templates/importConfirmation.ejs');
+
+    renderFile(templateUrl, { ...locals, headerImageUrl: "https://info.vost.pt/wp-content/uploads/2020/04/Open4Business_Header_NewLogo.png"}, (err, data) => {
+      if (err) {
+        this.logger.error('Error while trying to render file confirmAccount.ejs', this.loggerContext, err);
+        return;
+      } else {
+        const mainOptions = {
+          from: '"Open4Business by VOSTPT"<no-reply@vost.pt>',
+          to: locals.emailToSend,
+          subject: 'Lojas Importadas: Ativadas',
+          html: data
+        };
+
+        return this.transport.sendMail(mainOptions, (error) => {
+          if (error) {
+            console.error('sendMail: ImportConfirmationEmail', error);
+            this.logger.error('Error while trying to send locations review account email', this.loggerContext);
+          }
+        });
+      }
+    });
+  }
+
 }

@@ -72,7 +72,7 @@ export class InsightsV1Controller {
 
       // Send notification email to user
       const userLocals = {
-        emailToSend: environment.adminEmail,
+        emailToSend: business.email,
         password: password,
       };
 
@@ -92,16 +92,21 @@ export class InsightsV1Controller {
   async getLocations(@Query('search') search: string, @Res() res: Response):
       Promise<object> {
     const exp = new RegExp('.*' + search + '.*', 'i');
-    const filter = search ? {
-      $or: [
-        {company: {$regex: exp}}, {store: {$regex: exp}},
-        {address: {$regex: exp}}, {fregesia: {$regex: exp}},
-        {concelho: {$regex: exp}}, {district: {$regex: exp}}
-      ]
-    } : {};
 
-    console.log('search locations', filter);
+    let filter = {isActive: true};
 
+    if (search) {
+      filter = {
+        ...filter,
+        ...{
+          $or: [
+            {company: {$regex: exp}}, {store: {$regex: exp}},
+            {address: {$regex: exp}}, {fregesia: {$regex: exp}},
+            {concelho: {$regex: exp}}, {district: {$regex: exp}}
+          ]
+        }
+      };
+    }
 
     const locations = await this.locationService.getLocations(filter);
 

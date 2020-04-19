@@ -28,4 +28,8 @@ export class LocationService {
   async getLocations(filter) {
     return this.locationModel.find(filter).exec();
   }
+
+  async updateLocations(body: {query: object; update: object}) {
+    return this.locationModel.updateMany(body.query, body.update).exec();
+  }
 }

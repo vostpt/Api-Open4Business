@@ -1,23 +1,23 @@
-import {Body, Controller, Get, Logger, Param, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors} from '@nestjs/common';
-import {FileInterceptor} from '@nestjs/platform-express';
-import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags} from '@nestjs/swagger';
-import {Response} from 'express';
-import {v1 as uuidv1} from 'uuid';
+import { Body, Controller, Get, Logger, Param, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
+import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
+import { environment } from '../../../config/environment';
+import { multerOptions } from '../../../config/multer.config';
+import { ResponseModel } from '../../auth/v1/models/response.model';
+import { AuthGuard } from '../../core/guards/auth.guard';
+import { getResponse } from '../../core/helpers/response.helper';
+import { BusinessModel } from '../../core/models/business.model';
+import { LocationModel } from '../../core/models/location.model';
+import { SuccessResponseModel } from '../../core/models/success-response.model';
+import { BusinessService } from '../../core/services/business.service';
+import { LocationService } from '../../core/services/location.service';
+import { MailSenderService } from '../../core/services/mailsender.service';
+import { AccountService } from './services/account.service';
+import { ParseService } from './services/parser.service';
 
-import {environment} from '../../../config/environment';
-import {multerOptions} from '../../../config/multer.config';
-import {ResponseModel} from '../../auth/v1/models/response.model';
-import {AuthGuard} from '../../core/guards/auth.guard';
-import {getResponse} from '../../core/helpers/response.helper';
-import {BusinessModel} from '../../core/models/business.model';
-import {LocationModel} from '../../core/models/location.model';
-import {SuccessResponseModel} from '../../core/models/success-response.model';
-import {BusinessService} from '../../core/services/business.service';
-import {LocationService} from '../../core/services/location.service';
-import {MailSenderService} from '../../core/services/mailsender.service';
 
-import {AccountService} from './services/account.service';
-import {ParseService} from './services/parser.service';
 
 @Controller('api/businesses/v1')
 @ApiBearerAuth()
@@ -73,6 +73,11 @@ export class BusinessesV1Controller {
   ): Promise<object> {
     let response: ResponseModel;
     const email = req.context.authId;
+    const batchId = uuidv4();
+    let company: string;
+    let companyEmail: string;
+    let counter = 0;
+    const errors = [];
 
     if (!dataFile) {
       return res.status(400).send(
@@ -83,49 +88,80 @@ export class BusinessesV1Controller {
       const business: BusinessModel =
           await this.businessService.find({email: email});
 
-      if (business) {
-        // Parse csv file
-        const headers = [
-          'locationId',    'company',
-          'store',         'address',
-          'parish',        'council',
-          'district',      'zipCode',
-          'latitude',      'longitude',
-          'phone',         'sector',
-          'schedule1',     'schedule1Dow',
-          'schedule1Type', 'schedule1Period',
-          'schedule2',     'schedule2Dow',
-          'schedule2Type', 'schedule2Period',
-          'schedule3',     'schedule3Dow',
-          'schedule3Type', 'schedule3Period',
-          'byAppointment', 'contactForSchedule',
-          'typeOfService', 'obs'
-        ];
-
-        const data = await this.parser.parseLocations(dataFile, headers, ',');
-        let counter = 0;
-        data.list.forEach((location: LocationModel) => {
-          location.locationId = uuidv1();
-          location.businessId = business.businessId;
-          location.audit = {
-            personName,
-            personEmail,
-            updatedAt: Math.round(+new Date() / 1000)
-          };
-
-          console.log('location', location);
-          this.locationService.createLocation(location);
-
-          counter++
-        });
-
-        response = getResponse(200, {data: {locations: counter}});
+      if (!business) {
+        return res.status(404).send(
+            getResponse(404, {resultMessage: 'Company not found.'}));
       }
+
+      company = business.company;
+      companyEmail = business.email;
+
+      // Parse csv file
+      const headers = [
+        'locationId',    'company',
+        'store',         'address',
+        'parish',        'council',
+        'district',      'zipCode',
+        'latitude',      'longitude',
+        'phone',         'sector',
+        'schedule1',     'schedule1Dow',
+        'schedule1Type', 'schedule1Period',
+        'schedule2',     'schedule2Dow',
+        'schedule2Type', 'schedule2Period',
+        'schedule3',     'schedule3Dow',
+        'schedule3Type', 'schedule3Period',
+        'byAppointment', 'contactForSchedule',
+        'typeOfService', 'obs'
+      ];
+
+      const data = await this.parser.parseLocations(dataFile, headers, ',');
+      
+
+      for (let i = 0; i < data.list.length; i++) {
+        const location: LocationModel = data.list[i];
+
+        location.locationId = uuidv1();
+        location.businessId = business.businessId;
+        location.isActive = false;
+        location.audit = {
+          personName,
+          personEmail,
+          batchId,
+          updatedAt: Math.round(+new Date() / 1000)
+        };
+
+        try {
+          await this.locationService.createLocation(location);
+          counter++;
+        } catch (e) {
+          errors.push({...e.errors, row: i + 1});
+        }
+      }
+
+      response = getResponse(200, {
+        data: {
+          totalRows: data.list.length,
+          successCount: counter,
+          errorCount: errors.length,
+          errors
+        }
+      });
     } catch (e) {
       response = getResponse(
           400, {data: e, resultMessage: 'Failed to import locations.'});
     }
 
+    // Send notification email to admin
+    const userLocals = {
+      emailToSend: environment.adminEmail,
+      company,
+      companyEmail,
+      successCount: counter,
+      errorCount: errors.length,
+      batchUrl: `${environment.portal}/businesses/locations/review?batchId=${batchId}&email=${companyEmail}`
+    };
+
+    this.mailService.sendImportNotificationEmail(userLocals);
     return res.status(response.resultCode).send(response);
   }
 
@@ -183,6 +219,7 @@ export class BusinessesV1Controller {
   @ApiOkResponse({description: 'Returns list of locations', type: SuccessResponseModel})
   async getLocations(
     @Query('search') search: string,
+    @Query('batchId') batchId: string,
     @Req() req,
     @Res() res: Response
   ): Promise<object> {
@@ -195,36 +232,43 @@ export class BusinessesV1Controller {
       let filter = {};
 
       if (!isAdmin) {
-        const business: BusinessModel = await this.businessService.find({email});
+        const business: BusinessModel =
+            await this.businessService.find({email});
 
-          if (!business) {
-            response = getResponse(404);
-            return res.status(response.resultCode).send(response);
+        if (!business) {
+          response = getResponse(404);
+          return res.status(response.resultCode).send(response);
+        }
+
+        filter = {
+          ...filter,
+          ...{
+            businessId: business.businessId
           }
-
-          filter = {
-            ...filter,
-            ...{
-              businessId: business.businessId
-            }
-          };
+        };
       }
-      
+
       if (search) {
         const exp = new RegExp('.*' + search + '.*', 'i');
         filter = {
-          ...filter, 
+          ...filter,
           $or: [
-            {company: {$regex: exp}}, 
-            {store: {$regex: exp}}, 
-            {address: {$regex: exp}}, 
-            {fregesia: {$regex: exp}}, 
-            {concelho: {$regex: exp}}, 
-            {district: {$regex: exp}}
+            {company: {$regex: exp}}, {store: {$regex: exp}},
+            {address: {$regex: exp}}, {fregesia: {$regex: exp}},
+            {concelho: {$regex: exp}}, {district: {$regex: exp}}
           ]
-        };  
+        };
       }
-      
+
+      if (batchId) {
+        filter = {
+          ...filter,
+          ...{
+            'audit.batchId': batchId
+          }
+        };
+      }
+
       console.log('search locations', filter);
 
       const locations = await this.locationService.getLocations(filter);
@@ -234,5 +278,44 @@ export class BusinessesV1Controller {
     }
 
     return res.status(response.resultCode).send(response);
+  }
+
+  @Post('locations/confirm')
+  @ApiOperation({summary: 'Confirm business locations'})
+  @ApiOkResponse({description: 'Business locations confirmed'})
+  @ApiBadRequestResponse({description: 'Invalid token'})
+  @ApiResponse({status: 412, description: 'Missing required parameters'})
+  async confirmBusinessLocations(
+      @Body('batchId') batchId: string,
+      @Body('email') email: string,
+      @Body('confirm') confirm: boolean,
+      @Req() req, @Res() res: any) {
+    const isAdmin = req.context.isAdmin;
+
+    if (!isAdmin) {
+      return res.status(400).send(getResponse(
+          400, {resultMessage: 'Only admin can activate accounts.'}));
+    }
+
+    let response = getResponse(200);
+
+    try {
+      const changes = await this.locationService.updateLocations({query: {'audit.batchId': batchId}, update: {isActive: confirm}});
+
+      // Send notification email to user
+      const locals = {
+        emailToSend: email,
+        portalUrl: `${environment.portal}`
+      };
+
+      this.mailService.sendImportConfirmationEmail(locals);
+
+      response = getResponse(200, {data: changes});
+    } catch (e) {
+      response = getResponse(400, {data: e});
+    }
+
+    return res.status(response.resultCode).send(response);
+    ;
   }
 }
