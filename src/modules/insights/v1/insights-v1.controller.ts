@@ -73,6 +73,7 @@ export class InsightsV1Controller {
       // Send notification email to user
       const userLocals = {
         emailToSend: business.email,
+        company: business.company,
         password: password,
       };
 
@@ -93,7 +94,8 @@ export class InsightsV1Controller {
       Promise<object> {
     const exp = new RegExp('.*' + search + '.*', 'i');
 
-    let filter = {isActive: true};
+    // default filter: active and opened
+    let filter = {isActive: true, isOpen: true};
 
     if (search) {
       filter = {

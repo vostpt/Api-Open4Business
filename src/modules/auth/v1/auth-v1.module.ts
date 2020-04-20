@@ -9,7 +9,7 @@ import { SessionSchema } from './schemas/session.schema';
 import { AuthsService } from './services/auths.service';
 import { ChangePasswordService } from './services/change-password.service';
 import { ConfirmAccountService } from './services/confirm-account.service';
-import { DecodeTokenService } from './services/decode-token.service';
+import { DecodeTokenService } from '../../core/services/decode-token.service';
 import { LogoutService } from './services/logout.service';
 import { RecoverPasswordService } from './services/recover-password.service';
 import { ResendConfirmAccountEmailService } from './services/resend-confirm-account-email.service';

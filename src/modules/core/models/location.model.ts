@@ -33,5 +33,6 @@ export class LocationModel {
   typeOfService: string;
   obs: string;
   isActive: boolean;
+  isOpen: boolean;
   audit: object;
 }

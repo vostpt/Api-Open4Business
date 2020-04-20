@@ -2,9 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { verify } from 'jsonwebtoken';
 import { promisify } from 'util';
 
-import { environment } from '../../../../config/environment';
+import { environment } from '../../../config/environment';
 
-import { TokenModel } from '../../../core/models/token.model';
+import { TokenModel } from '../models/token.model';
 
 @Injectable()
 export class DecodeTokenService {

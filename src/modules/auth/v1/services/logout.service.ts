@@ -2,7 +2,7 @@ import { Injectable, Logger, Inject } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { Request } from 'express';
 
-import { DecodeTokenService } from './decode-token.service';
+import { DecodeTokenService } from '../../../core/services/decode-token.service';
 import { SessionsService } from './sessions.service';
 
 import { getResponse } from '../../../core/helpers/response.helper';

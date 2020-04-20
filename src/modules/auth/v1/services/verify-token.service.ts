@@ -2,7 +2,7 @@ import {Injectable, Logger} from '@nestjs/common';
 import {getResponse} from '../../../core/helpers/response.helper';
 
 import {AuthsService} from './auths.service';
-import {DecodeTokenService} from './decode-token.service';
+import {DecodeTokenService} from '../../../core/services/decode-token.service';
 import {SessionsService} from './sessions.service';
 
 @Injectable()

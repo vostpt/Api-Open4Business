@@ -27,7 +27,7 @@ export class MailSenderService {
   sendConfirmAccountEmail(locals) {
     const templateUrl = join(__dirname, '../../../assets/templates/confirmAccount.ejs');
 
-    renderFile(templateUrl, { emailToSend: locals.emailToSend, password: locals.password, headerImageUrl: "https://info.vost.pt/wp-content/uploads/2020/04/Open4Business_Header_NewLogo.png"}, (err, data) => {
+    renderFile(templateUrl, { ...locals, headerImageUrl: "https://info.vost.pt/wp-content/uploads/2020/04/Open4Business_Header_NewLogo.png"}, (err, data) => {
       if (err) {
         this.logger.error('Error while trying to render file confirmAccount.ejs', this.loggerContext, err);
         return;
@@ -184,7 +184,7 @@ export class MailSenderService {
 
   sendAccountConfirmedEmail(locals) {
     const templateUrl = join(__dirname, '../../../assets/templates/accountConfirmedEmail.ejs');
-    renderFile(templateUrl, { loginUrl: locals.loginUrl, headerImageUrl: "https://info.vost.pt/wp-content/uploads/2020/04/Open4Business_Header_NewLogo.png" }, (err, data) => {
+    renderFile(templateUrl, { ...locals, headerImageUrl: "https://info.vost.pt/wp-content/uploads/2020/04/Open4Business_Header_NewLogo.png" }, (err, data) => {
       if (err) {
         this.logger.error('Error while trying to render file accountConfirmedEmail.ejs', this.loggerContext, err);
         return;

@@ -1,21 +1,24 @@
-import { Body, Controller, Get, Logger, Param, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Response } from 'express';
-import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
-import { environment } from '../../../config/environment';
-import { multerOptions } from '../../../config/multer.config';
-import { ResponseModel } from '../../auth/v1/models/response.model';
-import { AuthGuard } from '../../core/guards/auth.guard';
-import { getResponse } from '../../core/helpers/response.helper';
-import { BusinessModel } from '../../core/models/business.model';
-import { LocationModel } from '../../core/models/location.model';
-import { SuccessResponseModel } from '../../core/models/success-response.model';
-import { BusinessService } from '../../core/services/business.service';
-import { LocationService } from '../../core/services/location.service';
-import { MailSenderService } from '../../core/services/mailsender.service';
-import { AccountService } from './services/account.service';
-import { ParseService } from './services/parser.service';
+import {Body, Controller, Get, Logger, Param, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors, Delete} from '@nestjs/common';
+import {FileInterceptor} from '@nestjs/platform-express';
+import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags} from '@nestjs/swagger';
+import {Response} from 'express';
+import {v1 as uuidv1, v4 as uuidv4} from 'uuid';
+
+import {environment} from '../../../config/environment';
+import {multerOptions} from '../../../config/multer.config';
+import {ResponseModel} from '../../auth/v1/models/response.model';
+import {AuthGuard} from '../../core/guards/auth.guard';
+import {getResponse} from '../../core/helpers/response.helper';
+import {BusinessModel} from '../../core/models/business.model';
+import {LocationModel} from '../../core/models/location.model';
+import {SuccessResponseModel} from '../../core/models/success-response.model';
+import {BusinessService} from '../../core/services/business.service';
+import {DecodeTokenService} from '../../core/services/decode-token.service';
+import {LocationService} from '../../core/services/location.service';
+import {MailSenderService} from '../../core/services/mailsender.service';
+
+import {AccountService} from './services/account.service';
+import {ParseService} from './services/parser.service';
 
 
 
@@ -29,6 +32,7 @@ export class BusinessesV1Controller {
       private readonly locationService: LocationService,
       private readonly businessService: BusinessService,
       private readonly mailService: MailSenderService,
+      private readonly decodeTokenService: DecodeTokenService,
       private readonly parser: ParseService, private readonly logger: Logger) {
     this.logger.log('Init insights controller', BusinessesV1Controller.name);
   }
@@ -64,7 +68,7 @@ export class BusinessesV1Controller {
   @ApiOperation({summary: 'Add locations to a business'})
   @ApiCreatedResponse({description: 'Successfully added locations to a business', type: ResponseModel})
   @ApiBadRequestResponse({description: 'Invalid company info'})
-  async createBusiness(
+  async addLocationsBusiness(
     @Body('email') personEmail: string, 
     @Body('name') personName: string, 
     @Body('dataFile') dataFile: string, 
@@ -115,7 +119,7 @@ export class BusinessesV1Controller {
       ];
 
       const data = await this.parser.parseLocations(dataFile, headers, ',');
-      
+
 
       for (let i = 0; i < data.list.length; i++) {
         const location: LocationModel = data.list[i];
@@ -123,6 +127,7 @@ export class BusinessesV1Controller {
         location.locationId = uuidv1();
         location.businessId = business.businessId;
         location.isActive = false;
+        location.isOpen = true;
         location.audit = {
           personName,
           personEmail,
@@ -158,11 +163,86 @@ export class BusinessesV1Controller {
       companyEmail,
       successCount: counter,
       errorCount: errors.length,
-      batchUrl: `${environment.portal}/businesses/locations/review?batchId=${batchId}&email=${companyEmail}`
+      batchUrl: `${environment.portal}/businesses/locations/review?batchId=${
+          batchId}&email=${companyEmail}`
     };
 
     this.mailService.sendImportNotificationEmail(userLocals);
     return res.status(response.resultCode).send(response);
+  }
+
+  @Put('locations')
+  @ApiOperation({summary: 'Update location'})
+  @ApiCreatedResponse({description: 'Successfully updated location', type: ResponseModel})
+  @ApiBadRequestResponse({description: 'Invalid location info'})
+  async updateLocation(
+    @Body() location: LocationModel, 
+    @Req() req, 
+    @Res() res: Response
+  ) : Promise<object> {
+    const email = req.context.authId;
+
+    let response: ResponseModel = getResponse(200, {data: {locations: []}});
+
+    try {
+      const business: BusinessModel = await this.businessService.find({email});
+
+      if (!business) {
+        response = getResponse(403);
+        return res.status(response.resultCode).send(response);
+      }
+
+      let updatedLocation;
+      if (location.locationId) {
+        updatedLocation = await this.locationService.updateLocation(business.businessId, location);
+      } else {
+        location.locationId = uuidv1();
+        location.businessId = business.businessId;
+        location.audit = {
+          personName: email,
+          personEmail: email,
+          batchId: uuidv4(),
+          updatedAt: Math.round(+new Date() / 1000)
+        };
+
+        await this.locationService.createLocation(location);
+      }
+
+      return res.status(200).send(getResponse(200, {data: updatedLocation}));
+    } catch (e) {
+      return res.status(400).send(getResponse(
+          400, {resultMessage: 'Failed to update location', data: e}));
+    }
+  }
+
+  @Delete('locations')
+  @ApiOperation({summary: 'Delete location'})
+  @ApiCreatedResponse({description: 'Successfully deleted location', type: ResponseModel})
+  @ApiBadRequestResponse({description: 'Invalid location info'})
+  async deleteLocation(
+    @Query('locationId') locationId: string, 
+    @Req() req, 
+    @Res() res: Response
+  ) : Promise<object> {
+    const email = req.context.authId;
+
+    let response: ResponseModel = getResponse(200, {data: {locations: []}});
+
+    try {
+      const business: BusinessModel = await this.businessService.find({email});
+
+      if (!business) {
+        response = getResponse(403);
+        return res.status(response.resultCode).send(response);
+      }
+
+      const deletedLocation = await this.locationService.deleteLocation(business.businessId, locationId);
+
+      return res.status(200).send(getResponse(200, {data: deletedLocation}));
+    } catch (e) {
+      return res.status(400).send(getResponse(
+          400, {resultMessage: 'Failed to delete location', data: e}));
+    }
   }
 
   @Post('confirm')
@@ -186,9 +266,14 @@ export class BusinessesV1Controller {
       await (await this.accountService.confirmAccount(token, confirmationCode))
           .toPromise();
 
+      const decodedAuth = await this.decodeTokenService.decodeToken(token);
+      const business =
+          await this.businessService.find({email: decodedAuth.authId});
+
       // Send notification email to user
       const locals = {
-        emailToSend: environment.adminEmail,
+        emailToSend: decodedAuth.authId,
+        company: business.company,
         loginUrl: `${environment.portal}/auth/signin`
       };
 
@@ -198,7 +283,6 @@ export class BusinessesV1Controller {
     }
 
     return res.status(response.resultCode).send(response);
-    ;
   }
 
   @Post('file')
@@ -286,10 +370,8 @@ export class BusinessesV1Controller {
   @ApiBadRequestResponse({description: 'Invalid token'})
   @ApiResponse({status: 412, description: 'Missing required parameters'})
   async confirmBusinessLocations(
-      @Body('batchId') batchId: string,
-      @Body('email') email: string,
-      @Body('confirm') confirm: boolean,
-      @Req() req, @Res() res: any) {
+      @Body('batchId') batchId: string, @Body('email') email: string,
+      @Body('confirm') confirm: boolean, @Req() req, @Res() res: any) {
     const isAdmin = req.context.isAdmin;
 
     if (!isAdmin) {
@@ -300,13 +382,11 @@ export class BusinessesV1Controller {
     let response = getResponse(200);
 
     try {
-      const changes = await this.locationService.updateLocations({query: {'audit.batchId': batchId}, update: {isActive: confirm}});
+      const changes = await this.locationService.updateLocations(
+          {query: {'audit.batchId': batchId}, update: {isActive: confirm}});
 
       // Send notification email to user
-      const locals = {
-        emailToSend: email,
-        portalUrl: `${environment.portal}`
-      };
+      const locals = {emailToSend: email, portalUrl: `${environment.portal}`};
 
       this.mailService.sendImportConfirmationEmail(locals);
 

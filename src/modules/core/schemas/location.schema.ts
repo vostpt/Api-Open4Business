@@ -31,5 +31,6 @@ export const LocationSchema = new Schema({
   typeOfService: {type: String, required: false},
   obs: {type: String, required: false},
   isActive: {type: Boolean, required: false, default: false},
+  isOpen: {type: Boolean, required: false, default: true},
   audit: {type: Object, required: false},
 });
