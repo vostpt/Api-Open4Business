@@ -71,11 +71,11 @@ docker-compose --file ./.docker/docker-compose.yml up
 
 ### Build
 ```
-docker build --target publishStage --tag baldasman/open4business-api:latest .
+docker build --target publishStage --tag vostpt/open4business-api:latest .
 ```
 
 ### Publish
 ```
 echo "PASS" | docker login --username USER --password-stdin docker.io
-docker push baldasman/open4business-api:latest
+docker push vostpt/open4business-api:latest
 ```
