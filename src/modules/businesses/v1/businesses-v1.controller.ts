@@ -80,6 +80,7 @@ export class BusinessesV1Controller {
     const batchId = uuidv4();
     let company: string;
     let companyEmail: string;
+    let total = 0;
     let counter = 0;
     const errors = [];
 
@@ -118,40 +119,62 @@ export class BusinessesV1Controller {
         'typeOfService', 'obs'
       ];
 
-      const data = await this.parser.parseLocations(dataFile, headers, ',');
-
-
-      for (let i = 0; i < data.list.length; i++) {
-        const location: LocationModel = data.list[i];
-
-        location.locationId = uuidv1();
-        location.businessId = business.businessId;
-        location.isActive = false;
-        location.isOpen = true;
-        location.audit = {
-          personName,
-          personEmail,
-          batchId,
-          updatedAt: Math.round(+new Date() / 1000)
-        };
-
-        try {
-          await this.locationService.createLocation(location);
-          counter++;
-        } catch (e) {
-          errors.push({...e.errors, row: i + 1});
-        }
+      let data;
+      try {
+        data = await this.parser.parseLocations(dataFile, headers, ',');
+      } catch(e) {
+        data = await this.parser.parseLocations(dataFile, headers, ';');
       }
+      
+      if (data) {
+        total = data.list.length;
 
-      response = getResponse(200, {
-        data: {
-          totalRows: data.list.length,
-          successCount: counter,
-          errorCount: errors.length,
-          errors
+        for (let i = 0; i < data.list.length; i++) {
+          const location: LocationModel = data.list[i];
+  
+          location.locationId = uuidv1();
+          location.businessId = business.businessId;
+          location.isActive = false;
+          location.isOpen = true;
+          location.audit = {
+            personName,
+            personEmail,
+            batchId,
+            updatedAt: Math.round(+new Date() / 1000)
+          };
+          
+          try {
+            if (location.latitude && location.latitude.toString().indexOf(',') >= 0) {
+              location.latitude = parseInt(location.latitude.toString().replace(',', '.'));
+            }
+            
+            if (location.longitude && location.longitude.toString().indexOf(',') >= 0) {
+              location.longitude = parseInt(location.longitude.toString().replace(',', '.'));
+            }
+
+            if (location.company && location.store && location.latitude && location.longitude) {
+              await this.locationService.createLocation(location);
+              counter++;
+            }
+          } catch (e) {
+            errors.push({...e.errors, row: i + 1});
+          }
         }
-      });
+
+        response = getResponse(200, {
+          data: {
+            totalRows: data.list.length,
+            successCount: counter,
+            errorCount: data.list.length - counter,
+            errors
+          }
+        });
+      } else {
+        response = getResponse(
+          400, {data: errors, resultMessage: 'Failed to parse csv.'});
+      }
     } catch (e) {
+      console.log(e);
       response = getResponse(
           400, {data: e, resultMessage: 'Failed to import locations.'});
     }
@@ -162,7 +185,7 @@ export class BusinessesV1Controller {
       company,
       companyEmail,
       successCount: counter,
-      errorCount: errors.length,
+      errorCount: total - counter,
       batchUrl: `${environment.portal}/businesses/locations/review?batchId=${
           batchId}&email=${companyEmail}`
     };
@@ -309,8 +332,6 @@ export class BusinessesV1Controller {
   @ApiBadRequestResponse({description: 'Invalid File info'})
   @ApiResponse({status: 412, description: 'Missing required parameters'})
   async importLocations(@Res() res: any, @UploadedFile() file) {
-    console.log(file);
-
     const response = getResponse(200, {data: {id: file.path}});
     return res.status(response.resultCode).send(response);
   }
@@ -369,8 +390,6 @@ export class BusinessesV1Controller {
           }
         };
       }
-
-      console.log('search locations', filter);
 
       const locations = await this.locationService.getLocations(filter);
       response = getResponse(200, {data: {locations}});
