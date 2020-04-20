@@ -45,7 +45,6 @@ export class AuthV1Controller {
       private readonly signUpService: SignUpService,
       private readonly verifyTokenService: VerifyTokenService,
       private readonly decodeTokenService: DecodeTokenService) {
-    this.logger.log('Init auth controller', AuthV1Controller.name);
   }
 
   @Get('session')

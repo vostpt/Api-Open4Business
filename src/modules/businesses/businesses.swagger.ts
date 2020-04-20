@@ -12,8 +12,7 @@ export class BusinessesDocumentation {
       .setVersion(businessesMenu.children[0].version)
       .addBearerAuth()
       .build();
-      console.log(businessesMenu);
-      console.log(businessesOptions);
+      
     const businessesDocument = SwaggerModule.createDocument(app, businessesOptions, { include: [BusinessesV1Module] });
     SwaggerModule.setup(`api/docs/${businessesMenu.children[0].path}`, app, businessesDocument, swaggerCustomization);
   }

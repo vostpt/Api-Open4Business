@@ -67,6 +67,14 @@ export class LocationService {
     return _location.save();
   }
 
+  async countLocations(filter) {
+    return this.locationModel.countDocuments(filter).exec();
+  }
+
+  async getLocationsWithPagination(filter, limit: number, offset: number) {
+    return this.locationModel.find(filter).sort('store').limit(limit).skip(offset).exec();
+  }
+
   async getLocations(filter) {
     return this.locationModel.find(filter).exec();
   }

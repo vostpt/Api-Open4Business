@@ -1,6 +1,6 @@
-import {Body, Controller, Get, Logger, Param, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors, Delete} from '@nestjs/common';
+import {Body, Controller, Delete, Get, Logger, Param, ParseIntPipe, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors} from '@nestjs/common';
 import {FileInterceptor} from '@nestjs/platform-express';
-import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags} from '@nestjs/swagger';
+import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiPropertyOptional} from '@nestjs/swagger';
 import {Response} from 'express';
 import {v1 as uuidv1, v4 as uuidv4} from 'uuid';
 
@@ -19,8 +19,6 @@ import {MailSenderService} from '../../core/services/mailsender.service';
 
 import {AccountService} from './services/account.service';
 import {ParseService} from './services/parser.service';
-
-
 
 @Controller('api/businesses/v1')
 @ApiBearerAuth()
@@ -122,16 +120,16 @@ export class BusinessesV1Controller {
       let data;
       try {
         data = await this.parser.parseLocations(dataFile, headers, ',');
-      } catch(e) {
+      } catch (e) {
         data = await this.parser.parseLocations(dataFile, headers, ';');
       }
-      
+
       if (data) {
         total = data.list.length;
 
         for (let i = 0; i < data.list.length; i++) {
           const location: LocationModel = data.list[i];
-  
+
           location.locationId = uuidv1();
           location.businessId = business.businessId;
           location.isActive = false;
@@ -142,17 +140,22 @@ export class BusinessesV1Controller {
             batchId,
             updatedAt: Math.round(+new Date() / 1000)
           };
-          
+
           try {
-            if (location.latitude && location.latitude.toString().indexOf(',') >= 0) {
-              location.latitude = parseInt(location.latitude.toString().replace(',', '.'));
-            }
-            
-            if (location.longitude && location.longitude.toString().indexOf(',') >= 0) {
-              location.longitude = parseInt(location.longitude.toString().replace(',', '.'));
+            if (location.latitude &&
+                location.latitude.toString().indexOf(',') >= 0) {
+              location.latitude =
+                  parseInt(location.latitude.toString().replace(',', '.'));
             }
 
-            if (location.company && location.store && location.latitude && location.longitude) {
+            if (location.longitude &&
+                location.longitude.toString().indexOf(',') >= 0) {
+              location.longitude =
+                  parseInt(location.longitude.toString().replace(',', '.'));
+            }
+
+            if (location.company && location.store && location.latitude &&
+                location.longitude) {
               await this.locationService.createLocation(location);
               counter++;
             }
@@ -171,7 +174,7 @@ export class BusinessesV1Controller {
         });
       } else {
         response = getResponse(
-          400, {data: errors, resultMessage: 'Failed to parse csv.'});
+            400, {data: errors, resultMessage: 'Failed to parse csv.'});
       }
     } catch (e) {
       console.log(e);
@@ -210,13 +213,16 @@ export class BusinessesV1Controller {
     try {
       let businessFilter = null;
       if (isAdmin) {
-        const _location: LocationModel = await this.locationService.findLocation({locationId: location.locationId});  
+        const _location: LocationModel =
+            await this.locationService.findLocation(
+                {locationId: location.locationId});
         businessFilter = {businessId: _location.businessId};
       } else {
         businessFilter = {email};
       }
 
-      const business: BusinessModel = await this.businessService.find(businessFilter);
+      const business: BusinessModel =
+          await this.businessService.find(businessFilter);
 
       if (!business) {
         response = getResponse(403);
@@ -225,7 +231,8 @@ export class BusinessesV1Controller {
 
       let updatedLocation;
       if (location.locationId) {
-        updatedLocation = await this.locationService.updateLocation(business.businessId, location);
+        updatedLocation = await this.locationService.updateLocation(
+            business.businessId, location);
       } else {
         location.locationId = uuidv1();
         location.businessId = business.businessId;
@@ -263,20 +270,23 @@ export class BusinessesV1Controller {
     try {
       let businessFilter = null;
       if (isAdmin) {
-        const location: LocationModel = await this.locationService.findLocation({locationId});  
+        const location: LocationModel =
+            await this.locationService.findLocation({locationId});
         businessFilter = {businessId: location.businessId};
       } else {
         businessFilter = {email};
       }
 
-      const business: BusinessModel = await this.businessService.find(businessFilter);
+      const business: BusinessModel =
+          await this.businessService.find(businessFilter);
 
       if (!business) {
         response = getResponse(403);
         return res.status(response.resultCode).send(response);
       }
 
-      const deletedLocation = await this.locationService.deleteLocation(business.businessId, locationId);
+      const deletedLocation = await this.locationService.deleteLocation(
+          business.businessId, locationId);
 
       return res.status(200).send(getResponse(200, {data: deletedLocation}));
     } catch (e) {
@@ -336,14 +346,19 @@ export class BusinessesV1Controller {
     return res.status(response.resultCode).send(response);
   }
 
+
+
   @Get('locations')
   @ApiOperation({summary: 'Get all locations from a business'})
   @ApiOkResponse({description: 'Returns list of locations', type: SuccessResponseModel})
+  @ApiPropertyOptional({name: 'limit'})
   async getLocations(
+    @Query('limit', ParseIntPipe) limit,
+    @Query('offset', ParseIntPipe) offset,
     @Query('search') search: string,
     @Query('batchId') batchId: string,
     @Req() req,
-    @Res() res: Response
+    @Res() res: Response,
   ): Promise<object> {
     const email = req.context.authId;
     const isAdmin = req.context.isAdmin;
@@ -391,8 +406,12 @@ export class BusinessesV1Controller {
         };
       }
 
-      const locations = await this.locationService.getLocations(filter);
-      response = getResponse(200, {data: {locations}});
+      const total = await this.locationService.countLocations(filter);
+      const locations = await this.locationService.getLocationsWithPagination(
+          filter, limit, offset);
+
+      response = getResponse(
+          200, {data: {locations, total, limit: limit, offset: offset}});
     } catch (e) {
       response = getResponse(404, {data: e});
     }
