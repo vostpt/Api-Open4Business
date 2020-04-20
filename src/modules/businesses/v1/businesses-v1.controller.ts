@@ -181,11 +181,19 @@ export class BusinessesV1Controller {
     @Res() res: Response
   ) : Promise<object> {
     const email = req.context.authId;
-
+    const isAdmin = req.context.isAdmin;
     let response: ResponseModel = getResponse(200, {data: {locations: []}});
 
     try {
-      const business: BusinessModel = await this.businessService.find({email});
+      let businessFilter = null;
+      if (isAdmin) {
+        const _location: LocationModel = await this.locationService.findLocation({locationId: location.locationId});  
+        businessFilter = {businessId: _location.businessId};
+      } else {
+        businessFilter = {email};
+      }
+
+      const business: BusinessModel = await this.businessService.find(businessFilter);
 
       if (!business) {
         response = getResponse(403);
@@ -225,11 +233,20 @@ export class BusinessesV1Controller {
     @Res() res: Response
   ) : Promise<object> {
     const email = req.context.authId;
+    const isAdmin = req.context.isAdmin;
 
     let response: ResponseModel = getResponse(200, {data: {locations: []}});
 
     try {
-      const business: BusinessModel = await this.businessService.find({email});
+      let businessFilter = null;
+      if (isAdmin) {
+        const location: LocationModel = await this.locationService.findLocation({locationId});  
+        businessFilter = {businessId: location.businessId};
+      } else {
+        businessFilter = {email};
+      }
+
+      const business: BusinessModel = await this.businessService.find(businessFilter);
 
       if (!business) {
         response = getResponse(403);
