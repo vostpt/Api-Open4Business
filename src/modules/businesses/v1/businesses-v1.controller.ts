@@ -1,9 +1,8 @@
 import {Body, Controller, Delete, Get, Logger, Param, ParseIntPipe, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors} from '@nestjs/common';
 import {FileInterceptor} from '@nestjs/platform-express';
-import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiPropertyOptional} from '@nestjs/swagger';
+import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags} from '@nestjs/swagger';
 import {Response} from 'express';
 import {v1 as uuidv1, v4 as uuidv4} from 'uuid';
-
 import {environment} from '../../../config/environment';
 import {multerOptions} from '../../../config/multer.config';
 import {ResponseModel} from '../../auth/v1/models/response.model';
@@ -11,14 +10,15 @@ import {AuthGuard} from '../../core/guards/auth.guard';
 import {getResponse} from '../../core/helpers/response.helper';
 import {BusinessModel} from '../../core/models/business.model';
 import {LocationModel} from '../../core/models/location.model';
-import {SuccessResponseModel} from '../../core/models/success-response.model';
 import {BusinessService} from '../../core/services/business.service';
 import {DecodeTokenService} from '../../core/services/decode-token.service';
 import {LocationService} from '../../core/services/location.service';
 import {MailSenderService} from '../../core/services/mailsender.service';
-
+import {LocationsResponseModel} from './models/businesses-responses.model';
 import {AccountService} from './services/account.service';
 import {ParseService} from './services/parser.service';
+
+
 
 @Controller('api/businesses/v1')
 @ApiBearerAuth()
@@ -346,12 +346,17 @@ export class BusinessesV1Controller {
     return res.status(response.resultCode).send(response);
   }
 
-
-
   @Get('locations')
-  @ApiOperation({summary: 'Get all locations from a business'})
-  @ApiOkResponse({description: 'Returns list of locations', type: SuccessResponseModel})
-  @ApiPropertyOptional({name: 'limit'})
+  @ApiOperation({summary: 'Get all locations from user\'s business'})
+  @ApiQuery({name: 'limit', type: Number, required: true})
+  @ApiQuery({name: 'offset', type: Number, required: true})
+  @ApiQuery({name: 'search', type: String, required: false})
+  @ApiQuery({name: 'batchId', type: String, required: false})
+  @ApiOkResponse({description: 'Returns list of locations', type: LocationsResponseModel})
+  @ApiForbiddenResponse({description: 'Forbidden'})
+  @ApiBadRequestResponse({description: 'Invalid parameters'})
+  @ApiNotFoundResponse({description: 'No Business was found for user'})
+  @ApiInternalServerErrorResponse({description: 'Unknown error'})
   async getLocations(
     @Query('limit', ParseIntPipe) limit,
     @Query('offset', ParseIntPipe) offset,
