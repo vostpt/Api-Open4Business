@@ -1,22 +1,23 @@
-import {Body, Controller, Delete, Get, Logger, Param, ParseIntPipe, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors} from '@nestjs/common';
-import {FileInterceptor} from '@nestjs/platform-express';
-import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags} from '@nestjs/swagger';
-import {Response} from 'express';
-import {v1 as uuidv1, v4 as uuidv4} from 'uuid';
-import {environment} from '../../../config/environment';
-import {multerOptions} from '../../../config/multer.config';
-import {ResponseModel} from '../../auth/v1/models/response.model';
-import {AuthGuard} from '../../core/guards/auth.guard';
-import {getResponse} from '../../core/helpers/response.helper';
-import {BusinessModel} from '../../core/models/business.model';
-import {LocationModel} from '../../core/models/location.model';
-import {BusinessService} from '../../core/services/business.service';
-import {DecodeTokenService} from '../../core/services/decode-token.service';
-import {LocationService} from '../../core/services/location.service';
-import {MailSenderService} from '../../core/services/mailsender.service';
-import {LocationsResponseModel} from './models/businesses-responses.model';
-import {AccountService} from './services/account.service';
-import {ParseService} from './services/parser.service';
+import { Body, Controller, Delete, Get, Logger, Param, ParseIntPipe, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
+import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
+import { environment } from '../../../config/environment';
+import { multerOptions } from '../../../config/multer.config';
+import { ResponseModel } from '../../auth/v1/models/response.model';
+import { AuthGuard } from '../../core/guards/auth.guard';
+import { getResponse } from '../../core/helpers/response.helper';
+import { BusinessModel } from '../../core/models/business.model';
+import { LocationModel } from '../../core/models/location.model';
+import { BusinessService } from '../../core/services/business.service';
+import { DecodeTokenService } from '../../core/services/decode-token.service';
+import { LocationService } from '../../core/services/location.service';
+import { MailSenderService } from '../../core/services/mailsender.service';
+import { LocationsResponseModel } from './models/businesses-responses.model';
+import { AccountService } from './services/account.service';
+import { ParseService } from './services/parser.service';
+import * as fs from 'fs';
 
 
 
@@ -59,6 +60,47 @@ export class BusinessesV1Controller {
     } catch (e) {
       return res.status(400).send(
           getResponse(400, {resultMessage: 'In development!', data: e}));
+    }
+  }
+
+  @Post('business/marker')
+  @ApiOperation({summary: 'Update business marker'})
+  @ApiCreatedResponse({description: 'Successfully updated business logo', type: BusinessModel})
+  @ApiBadRequestResponse({description: 'Invalid business info'})
+  async updateBusinessMarker(
+    @Body('markerPath') markerPath: string, 
+    @Body('businessId') businessId: string, 
+    @Req() req, 
+    @Res() res: Response):
+      Promise<object> {
+    const email = req.context.authId;
+    const isAdmin = req.context.isAdmin;
+    let resultMessage = "OK";
+
+console.log('info', markerPath, businessId, email, isAdmin);
+
+    if (!markerPath || !businessId) {
+      return res.status(400).send(getResponse(
+          400, {resultMessage: 'Missing "marker" or "businessId".'}));
+    }
+
+    try {
+      const business = await this.businessService.find({email});
+      console.log('business', business.businessId, business.email);
+      if (isAdmin || email == business.email) {
+        if (fs.existsSync(markerPath)) {
+          fs.renameSync(markerPath, `${environment.uploadsPath}/markers/${businessId}.png`);
+        } else {
+          resultMessage = 'Marker not found.';
+        }
+
+        return res.status(200).send(getResponse(200, {resultMessage}));
+      }
+
+      return res.status(404).send(getResponse(404, {resultMessage}));
+    } catch (e) {
+      return res.status(400).send(getResponse(
+          400, {resultMessage: 'Failed to set custom marker', data: e}));
     }
   }
 

@@ -229,22 +229,19 @@ export class AuthV1Controller {
       if (company) {
         update = {...update, company};
       }
-  
-      console.log('updateAuth', query, update);
-  
+      
       let changes = await this.authService.updateAuth({query, update});
-      console.log('auth update', changes);
   
       if (company) {
         changes = await this.businessService.updateBusiness({query: {email}, update});
-        console.log('company update', changes);
       }
   
       const auth = await this.authService.findAuth(query);
   
       const response = getResponse(200, {
         data: {
-          info: {email: auth.authId, name: auth.name, phone: auth.phone}
+          info: {email: auth.authId, name: auth.name, phone: auth.phone},
+          changes
         }
       });
   
@@ -328,7 +325,6 @@ export class AuthV1Controller {
     @Req() req,
     @Res() res: Response
   ): Promise<object> {
-    console.log('getUsers');
     // decode the token
     const decoded = await this.decodeTokenService.decodeToken(req['token']);
 

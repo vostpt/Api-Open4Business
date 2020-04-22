@@ -22,4 +22,7 @@ FROM node:11.15-alpine as publishStage
 COPY --from=buildStage /app/dist         /app
 COPY --from=buildStage /app/node_modules /app/node_modules
 
+ARG NODE_ENV=production
+ENV NODE_ENV=${NODE_ENV}
+
 CMD ["node", "/app/main.js"]

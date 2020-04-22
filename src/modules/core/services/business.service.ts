@@ -30,4 +30,8 @@ export class BusinessService {
   async updateBusiness(body: {query: object; update: object}) {
     return this.businessModel.updateOne(body.query, body.update).exec();
   }
+
+  async deleteBusiness(businessId: string) {
+    return this.businessModel.deleteOne({businessId}).exec();
+  }
 }

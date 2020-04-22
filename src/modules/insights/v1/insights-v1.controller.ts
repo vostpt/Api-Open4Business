@@ -35,6 +35,7 @@ export class InsightsV1Controller {
   @ApiBadRequestResponse({ description: 'Invalid business info' })
   async createBusiness(@Body() business: BusinessModel, @Res() res: Response): Promise<object> {
     let response: ResponseModel = null;
+    
     let newBusiness;
     try {
       newBusiness = await this.businessService.createBusiness(business);
@@ -79,11 +80,14 @@ export class InsightsV1Controller {
       };
 
       this.mailService.sendConfirmAccountEmail(userLocals);
-    } catch (e) {
-      response = getResponse(400, {data: e});
-    }
 
-    response = getResponse(200, {data: newBusiness});
+      response = getResponse(200, {data: newBusiness});
+    } catch (e) {
+      console.error(e);
+      response = getResponse(400, {data: e});
+
+      await this.businessService.deleteBusiness(business.businessId);
+    }
 
     return res.status(response.resultCode).send(response);
   }
