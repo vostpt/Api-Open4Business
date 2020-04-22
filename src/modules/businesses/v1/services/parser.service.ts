@@ -3,9 +3,8 @@ import * as fs from 'fs';
 import { CsvParser } from 'nest-csv-parser';
 import { LocationModel } from '../../../core/models/location.model';
 
-import * as detectCharacterEncoding from 'detect-character-encoding';
-
-const Iconv  = require('iconv').Iconv;
+// import * as detectCharacterEncoding from 'detect-character-encoding';
+// const Iconv  = require('iconv').Iconv;
 
 @Injectable()
 export class ParseService {
@@ -15,23 +14,23 @@ export class ParseService {
   async parseLocations(filename: string, headers: string[], separator: string) {
     // Create stream from file (or get it from S3)
 
-    const fileBuffer = fs.readFileSync(filename);
-    const charsetMatch = detectCharacterEncoding(fileBuffer);
-    console.log('charsetMatch', charsetMatch);
+    // const fileBuffer = fs.readFileSync(filename);
+    // const charsetMatch = detectCharacterEncoding(fileBuffer);
+    // console.log('charsetMatch', charsetMatch);
 
-    let encoding = 'UTF-8';
-    if (charsetMatch){
-      if (charsetMatch.encoding == "windows-1252") {
-        console.log('Found windows-1252!');
-        const iconv = new Iconv(charsetMatch.encoding, 'UTF-8');
-        const buffer = iconv.convert(fileBuffer);
-        fs.writeFileSync(filename, buffer);
+    const encoding = 'UTF-8';
+    // if (charsetMatch){
+    //   if (charsetMatch.encoding == "windows-1252") {
+    //     console.log('Found windows-1252!');
+    //     const iconv = new Iconv(charsetMatch.encoding, 'UTF-8');
+    //     const buffer = iconv.convert(fileBuffer);
+    //     fs.writeFileSync(filename, buffer);
   
-        encoding = 'UTF-8';
-      } else {
-        encoding = charsetMatch.encoding;
-      }
-    }
+    //     encoding = 'UTF-8';
+    //   } else {
+    //     encoding = charsetMatch.encoding;
+    //   }
+    // }
 
     const stream = fs.createReadStream(filename, encoding);
 
