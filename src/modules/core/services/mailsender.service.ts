@@ -11,20 +11,28 @@ export class MailSenderService {
 
   private transport = createTransport({
     service: 'gmail',
-    auth: {user: environment.smtpEmail, pass: environment.smtpPassword}
+    auth: {
+      user: environment.smtpEmail, 
+      pass: environment.smtpPassword,
+    }
   });
 
+  
+
   // private transport = createTransport({
-  //   host: environment.smtpHost,
-  //   port: 465,
-  //   secureConnection: true, // true for 465, false for other ports
+  //   host: 'smtp.gmail.com',
+  //   port: 587,
+  //   secure: false,
+  //   requireTLS: true,
   //   auth: {
-  //     user: environment.smtpEmail,
-  //     pass: environment.smtpPassword
+  //       user: environment.smtpEmail,
+  //       pass: environment.smtpPassword
   //   }
   // });
 
-  constructor(private readonly logger: Logger) {}
+  constructor(private readonly logger: Logger) {
+    console.log(environment.smtpEmail, environment.smtpPassword);
+  }
 
   sendConfirmAccountEmail(locals) {
     const templateUrl =
