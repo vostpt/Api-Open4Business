@@ -23,6 +23,10 @@ export class BusinessService {
     return this.businessModel.findOne(filter).exec();
   }
 
+  findAll(filter) {
+    return this.businessModel.find(filter).exec();
+  }
+
   async updateBusiness(body: {query: object; update: object}) {
     return this.businessModel.updateOne(body.query, body.update).exec();
   }

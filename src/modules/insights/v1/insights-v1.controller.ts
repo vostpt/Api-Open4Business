@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Logger, Post, Query, Res } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { Response } from 'express';
 import * as generator from 'generate-password';
 import { environment } from '../../../config/environment';
@@ -11,7 +11,8 @@ import { SuccessResponseModel } from '../../core/models/success-response.model';
 import { BusinessService } from '../../core/services/business.service';
 import { LocationService } from '../../core/services/location.service';
 import { MailSenderService } from '../../core/services/mailsender.service';
-
+import { join } from 'path';
+import * as fs from 'fs';
 
 
 @Controller('api/insights/v1')
@@ -113,6 +114,43 @@ export class InsightsV1Controller {
     const locations = await this.locationService.getLocations(filter);
 
     const response = {data: {locations}};
+    return res.status(200).send(response);
+  }
+
+  @Get('marker')
+  @ApiOperation({ summary: 'Get custom business marker' })
+  @ApiQuery({ name: 'businessId', description: 'business Id', type: String, required: true })
+  async exportAllUsers(
+    @Query('businessId') businessId: string,
+    @Res() res: Response
+  ): Promise<object> {
+    let markerPath = `${environment.uploadsPath}/markers/${businessId}.png`;
+
+    if (!fs.existsSync(markerPath)) {
+      markerPath = join(__dirname, '../../../assets/images/pin.png');
+    }
+
+    const fileBuffer = fs.readFileSync(markerPath);
+    res.attachment(`${businessId}.png`);
+    res.contentType('image/png');
+    return res.status(200).send(fileBuffer);
+  }
+
+  @Get('locations/businesses')
+  @ApiOperation({ summary: 'Get businesses' })
+  async getBusinesses(
+    @Res() res: Response
+  ): Promise<object> {
+    const businesses = await this.businessService.findAll({});
+
+    const publicInfo = businesses.map((b) => {
+      return {
+        businessId: b.businessId,
+        company: b.company,
+      };
+    });
+
+    const response = {data: {businesses: publicInfo}};
     return res.status(200).send(response);
   }
 }

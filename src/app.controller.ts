@@ -39,5 +39,13 @@ export class AppController {
   ): any {
     return res.sendFile(`assets/${req.params.folder}/${req.params.asset}`, { root: __dirname });
   }
+
+  @Get('api/assets/:folder/:asset')
+  apiGetAsset(
+    @Req() req: any,
+    @Res() res: any
+  ): any {
+    return res.sendFile(`assets/${req.params.folder}/${req.params.asset}`, { root: __dirname });
+  }
   
 }
