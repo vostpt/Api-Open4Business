@@ -1,25 +1,25 @@
-import { Body, Controller, Delete, Get, Logger, Param, ParseIntPipe, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Response } from 'express';
+import {Body, Controller, Delete, Get, Logger, Param, ParseIntPipe, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors} from '@nestjs/common';
+import {FileInterceptor} from '@nestjs/platform-express';
+import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags} from '@nestjs/swagger';
+import {Response} from 'express';
 import * as fs from 'fs';
-import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
-import { environment } from '../../../config/environment';
-import { multerOptions } from '../../../config/multer.config';
-import { ResponseModel } from '../../auth/v1/models/response.model';
-import { AuthGuard } from '../../core/guards/auth.guard';
-import { getResponse } from '../../core/helpers/response.helper';
-import { BusinessModel } from '../../core/models/business.model';
-import { LocationModel } from '../../core/models/location.model';
-import { BusinessService } from '../../core/services/business.service';
-import { DecodeTokenService } from '../../core/services/decode-token.service';
-import { LocationService } from '../../core/services/location.service';
-import { MailSenderService } from '../../core/services/mailsender.service';
-import { BatchModel } from './models/batch.model';
-import { LocationsResponseModel } from './models/businesses-responses.model';
-import { AccountService } from './services/account.service';
-import { BatchService } from './services/batch.service';
-import { ParseService } from './services/parser.service';
+import {v1 as uuidv1, v4 as uuidv4} from 'uuid';
+import {environment} from '../../../config/environment';
+import {multerOptions} from '../../../config/multer.config';
+import {ResponseModel} from '../../auth/v1/models/response.model';
+import {AuthGuard} from '../../core/guards/auth.guard';
+import {getResponse} from '../../core/helpers/response.helper';
+import {BusinessModel} from '../../core/models/business.model';
+import {LocationModel} from '../../core/models/location.model';
+import {BusinessService} from '../../core/services/business.service';
+import {DecodeTokenService} from '../../core/services/decode-token.service';
+import {LocationService} from '../../core/services/location.service';
+import {MailSenderService} from '../../core/services/mailsender.service';
+import {BatchModel} from './models/batch.model';
+import {LocationsResponseModel} from './models/businesses-responses.model';
+import {AccountService} from './services/account.service';
+import {BatchService} from './services/batch.service';
+import {ParseService} from './services/parser.service';
 
 
 
@@ -275,6 +275,15 @@ export class BusinessesV1Controller {
     const email = req.context.authId;
     const isAdmin = req.context.isAdmin;
     let response: ResponseModel = getResponse(200, {data: {locations: []}});
+    const newLocation = !location.locationId;
+
+    // Create batch
+    const batch = new BatchModel();
+    batch.batchId = uuidv4();
+    batch.createdAt = Math.round(+new Date() / 1000);
+    batch.updatedAt = Math.round(+new Date() / 1000);
+    batch.stats.total = 1;
+    batch.stats.sucess = 1;
 
     try {
       let businessFilter = null;
@@ -295,6 +304,10 @@ export class BusinessesV1Controller {
         return res.status(response.resultCode).send(response);
       }
 
+      batch.personEmail = business.email;
+      batch.personName = business.name;
+      batch.personPhone = business.phone;
+      
       let updatedLocation;
       if (location.locationId) {
         updatedLocation = await this.locationService.updateLocation(
@@ -305,11 +318,26 @@ export class BusinessesV1Controller {
         location.audit = {
           personName: email,
           personEmail: email,
-          batchId: uuidv4(),
+          batchId: batch.batchId,
           updatedAt: Math.round(+new Date() / 1000)
         };
 
         await this.locationService.createLocation(location);
+
+        // Send notification email to admin
+        const userLocals = {
+          emailToSend: environment.adminEmail,
+          company: business.company,
+          companyEmail: business.email,
+          status: 'Nova',
+          successCount: batch.stats.sucess,
+          errorCount: batch.stats.ignored,
+          batchUrl:
+              `${environment.portal}/businesses/locations/review?batchId=${
+                  batch.batchId}&email=${business.email}`
+        };
+
+        this.mailService.sendImportNotificationEmail(userLocals);
       }
 
       return res.status(200).send(getResponse(200, {data: updatedLocation}));
@@ -511,12 +539,14 @@ export class BusinessesV1Controller {
       let changes = await this.locationService.updateLocations(
           {query: {'audit.batchId': batchId}, update: {isActive: confirm}});
 
-      changes = await this.batchService.updateBatch(
-        {query: {'batchId': batchId}, update: {status: confirm ? 'APPROVED' : 'REJECTED'}});
+      changes = await this.batchService.updateBatch({
+        query: {'batchId': batchId},
+        update: {status: confirm ? 'APPROVED' : 'REJECTED'}
+      });
 
       // Send notification email to user
       const locals = {
-        emailToSend: email, 
+        emailToSend: email,
         portalUrl: `${environment.portal}`,
         confirm
       };
@@ -566,8 +596,10 @@ export class BusinessesV1Controller {
       }
 
       if (submit) {
-        changes = await this.batchService.updateBatch(
-          {query: {'batchId': batchId}, update: {status: 'WAITING_FOR_APPROVAL'}});
+        changes = await this.batchService.updateBatch({
+          query: {'batchId': batchId},
+          update: {status: 'WAITING_FOR_APPROVAL'}
+        });
 
         // Send notification email to admin
         const userLocals = {
@@ -620,8 +652,10 @@ export class BusinessesV1Controller {
     }
 
     try {
-      const batches =
-          await this.batchService.findMany({businessId: business.businessId,  status: status || 'WAITING_FOR_APPROVAL'});
+      const batches = await this.batchService.findMany({
+        businessId: business.businessId,
+        status: status || 'WAITING_FOR_APPROVAL'
+      });
 
       const response: ResponseModel = getResponse(200, {data: {batches}});
       return res.status(response.resultCode).send(response);

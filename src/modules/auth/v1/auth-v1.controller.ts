@@ -272,7 +272,6 @@ export class AuthV1Controller {
     @Req() req,
     @Res() res: Response
   ): Promise<object> {
-    console.log('getInfo');
     // decode the token
     const decoded = await this.decodeTokenService.decodeToken(req['token']);
 
