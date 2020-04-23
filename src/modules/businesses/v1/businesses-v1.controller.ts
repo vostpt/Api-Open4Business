@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Logger, Param, ParseIntPipe, Post, Put, 
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
+import * as fs from 'fs';
 import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
 import { environment } from '../../../config/environment';
 import { multerOptions } from '../../../config/multer.config';
@@ -14,10 +15,11 @@ import { BusinessService } from '../../core/services/business.service';
 import { DecodeTokenService } from '../../core/services/decode-token.service';
 import { LocationService } from '../../core/services/location.service';
 import { MailSenderService } from '../../core/services/mailsender.service';
+import { BatchModel } from './models/batch.model';
 import { LocationsResponseModel } from './models/businesses-responses.model';
 import { AccountService } from './services/account.service';
+import { BatchService } from './services/batch.service';
 import { ParseService } from './services/parser.service';
-import * as fs from 'fs';
 
 
 
@@ -30,6 +32,7 @@ export class BusinessesV1Controller {
       private readonly accountService: AccountService,
       private readonly locationService: LocationService,
       private readonly businessService: BusinessService,
+      private readonly batchService: BatchService,
       private readonly mailService: MailSenderService,
       private readonly decodeTokenService: DecodeTokenService,
       private readonly parser: ParseService, private readonly logger: Logger) {
@@ -75,9 +78,7 @@ export class BusinessesV1Controller {
       Promise<object> {
     const email = req.context.authId;
     const isAdmin = req.context.isAdmin;
-    let resultMessage = "OK";
-
-console.log('info', markerPath, businessId, email, isAdmin);
+    let resultMessage = 'OK';
 
     if (!markerPath || !businessId) {
       return res.status(400).send(getResponse(
@@ -89,7 +90,9 @@ console.log('info', markerPath, businessId, email, isAdmin);
       console.log('business', business.businessId, business.email);
       if (isAdmin || email == business.email) {
         if (fs.existsSync(markerPath)) {
-          fs.renameSync(markerPath, `${environment.uploadsPath}/markers/${businessId}.png`);
+          fs.renameSync(
+              markerPath,
+              `${environment.uploadsPath}/markers/${businessId}.png`);
         } else {
           resultMessage = 'Marker not found.';
         }
@@ -111,17 +114,23 @@ console.log('info', markerPath, businessId, email, isAdmin);
   async addLocationsBusiness(
     @Body('email') personEmail: string, 
     @Body('name') personName: string, 
+    @Body('phone') personPhone: string, 
     @Body('dataFile') dataFile: string, 
     @Req() req, 
     @Res() res: Response
   ): Promise<object> {
     let response: ResponseModel;
     const email = req.context.authId;
-    const batchId = uuidv4();
     let company: string;
     let companyEmail: string;
-    let total = 0;
-    let counter = 0;
+    const batch = new BatchModel();
+    batch.batchId = uuidv4();
+    batch.personEmail = personEmail;
+    batch.personName = personName;
+    batch.personPhone = personPhone;
+    batch.createdAt = Math.round(+new Date() / 1000);
+    batch.updatedAt = Math.round(+new Date() / 1000);
+
     const errors = [];
 
     if (!dataFile) {
@@ -138,8 +147,10 @@ console.log('info', markerPath, businessId, email, isAdmin);
             getResponse(404, {resultMessage: 'Company not found.'}));
       }
 
+      batch.businessId = business.businessId;
       company = business.company;
       companyEmail = business.email;
+
 
       // Parse csv file
       const headers = [
@@ -167,7 +178,7 @@ console.log('info', markerPath, businessId, email, isAdmin);
       }
 
       if (data) {
-        total = data.list.length;
+        batch.stats.total = data.list.length;
 
         for (let i = 0; i < data.list.length; i++) {
           const location: LocationModel = data.list[i];
@@ -179,7 +190,8 @@ console.log('info', markerPath, businessId, email, isAdmin);
           location.audit = {
             personName,
             personEmail,
-            batchId,
+            personPhone,
+            batchId: batch.batchId,
             updatedAt: Math.round(+new Date() / 1000)
           };
 
@@ -199,21 +211,32 @@ console.log('info', markerPath, businessId, email, isAdmin);
             if (location.company && location.store && location.latitude &&
                 location.longitude) {
               await this.locationService.createLocation(location);
-              counter++;
+              batch.stats.sucess++;
             }
           } catch (e) {
             errors.push({...e.errors, row: i + 1});
           }
         }
 
-        response = getResponse(200, {
-          data: {
-            totalRows: data.list.length,
-            successCount: counter,
-            errorCount: data.list.length - counter,
-            errors
-          }
-        });
+        batch.stats.ignored = batch.stats.total - batch.stats.sucess;
+
+        try {
+          await this.batchService.createBatch(batch);
+
+          response = getResponse(200, {
+            data: {
+              batchId: batch.batchId,
+              totalRows: batch.stats.total,
+              successCount: batch.stats.sucess,
+              errorCount: batch.stats.ignored,
+              errors
+            }
+          });
+        } catch (error) {
+          await this.locationService.deleteBatchLocations(batch.batchId);
+          response = getResponse(
+              400, {data: error, resultMessage: 'Failed to create batch.'});
+        }
       } else {
         response = getResponse(
             400, {data: errors, resultMessage: 'Failed to parse csv.'});
@@ -229,10 +252,11 @@ console.log('info', markerPath, businessId, email, isAdmin);
       emailToSend: environment.adminEmail,
       company,
       companyEmail,
-      successCount: counter,
-      errorCount: total - counter,
+      status: 'Importadas',
+      successCount: batch.stats.sucess,
+      errorCount: batch.stats.ignored,
       batchUrl: `${environment.portal}/businesses/locations/review?batchId=${
-          batchId}&email=${companyEmail}`
+          batch.batchId}&email=${companyEmail}`
     };
 
     this.mailService.sendImportNotificationEmail(userLocals);
@@ -499,5 +523,100 @@ console.log('info', markerPath, businessId, email, isAdmin);
 
     return res.status(response.resultCode).send(response);
     ;
+  }
+
+  @Post('locations/batch')
+  @ApiOperation({summary: 'Submit/discard locations batch'})
+  @ApiOkResponse({description: 'locations batch sbumited/discarded'})
+  @ApiForbiddenResponse({description: 'Invalid token'})
+  @ApiResponse({status: 412, description: 'Missing required parameters'})
+  async submitLocationsBatch(
+      @Body('batchId') batchId: string, @Body('submit') submit: boolean,
+      @Req() req, @Res() res: any) {
+    const email = req.context.authId;
+    let response = getResponse(200);
+    let changes;
+
+    try {
+      const batch = await this.batchService.find({'batchId': batchId});
+
+      if (!batch) {
+        response = getResponse(404, {resultMessage: 'Batch not found.'});
+        return res.status(response.resultCode).send(response);
+      }
+
+      if (batch.status != 'WAITING_FOR_APPROVAL') {
+        response = getResponse(400, {resultMessage: 'Batch already closed.'});
+        return res.status(response.resultCode).send(response);
+      }
+
+      const business =
+          await this.businessService.find({'businessId': batch.businessId});
+
+      if (!business || business.email != email) {
+        response = getResponse(403);
+        return res.status(response.resultCode).send(response);
+      }
+
+      if (submit) {
+        // Send notification email to admin
+        const userLocals = {
+          emailToSend: environment.adminEmail,
+          company: business.company,
+          companyEmail: business.email,
+          status: 'Submetidas Para Revisão',
+          successCount: batch.stats.success,
+          errorCount: batch.stats.total - batch.stats.success,
+          batchUrl:
+              `${environment.portal}/businesses/locations/review?batchId=${
+                  batchId}&email=${business.email}`
+        };
+
+        this.mailService.sendImportNotificationEmail(userLocals);
+      } else {
+        changes = await this.batchService.updateBatch(
+            {query: {'batchId': batchId}, update: {status: 'DISCARDED'}});
+
+        changes = await this.locationService.deleteBatchLocations(batchId);
+      }
+
+      response = getResponse(200, {data: {changes, submit}});
+    } catch (e) {
+      response = getResponse(400, {data: e});
+    }
+
+    return res.status(response.resultCode).send(response);
+  }
+
+  @Get('locations/batch')
+  @ApiOperation({summary: 'Get all locations batches from user\'s business'})
+  @ApiQuery({name: 'status', type: String, required: false})
+  @ApiOkResponse({description: 'Returns list of batch locations'})
+  @ApiForbiddenResponse({description: 'Forbidden'})
+  @ApiBadRequestResponse({description: 'Invalid parameters'})
+  @ApiNotFoundResponse({description: 'No Business was found for user'})
+  @ApiInternalServerErrorResponse({description: 'Unknown error'})
+  async getBatchLocations(
+      @Query('status') status: string,
+      @Req() req,
+      @Res() res: Response,
+      ): Promise<object> {
+    const email = req.context.authId;
+
+    const business = await this.businessService.find({'email': email});
+
+    if (!business) {
+      return res.status(403).send(getResponse(403));
+    }
+
+    try {
+      const batches =
+          await this.batchService.findMany({businessId: business.businessId,  status: status || 'WAITING_FOR_APPROVAL'});
+
+      const response: ResponseModel = getResponse(200, {data: {batches}});
+      return res.status(response.resultCode).send(response);
+    } catch (e) {
+      return res.status(400).send(getResponse(400, {data: e}));
+    }
   }
 }

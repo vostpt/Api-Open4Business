@@ -295,7 +295,7 @@ export class MailSenderService {
             const mainOptions = {
               from: '"Open4Business by VOSTPT"<no-reply@vost.pt>',
               to: locals.emailToSend,
-              subject: 'Lojas Importadas: ' + locals.company,
+              subject: `Lojas ${locals.status}: ${locals.company}`,
               html: data
             };
             return this.transport.sendMail(mainOptions, (error) => {

@@ -86,4 +86,8 @@ export class LocationService {
   async deleteLocation(businessId: string, locationId: string) {
     return this.locationModel.deleteOne({businessId, locationId}).exec();
   }
+
+  async deleteBatchLocations(batchId: string) {
+    return this.locationModel.deleteMany({'audit.batchId': batchId}).exec();
+  }
 }

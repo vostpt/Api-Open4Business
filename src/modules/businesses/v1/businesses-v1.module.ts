@@ -11,6 +11,8 @@ import { BusinessesV1Controller } from './businesses-v1.controller';
 import { AccountService } from './services/account.service';
 import { MailSenderService } from '../../core/services/mailsender.service';
 import { DecodeTokenService } from '../../core/services/decode-token.service';
+import { BatchSchema } from './schemas/batch.schema';
+import { BatchService } from './services/batch.service';
 
 
 
@@ -18,9 +20,10 @@ import { DecodeTokenService } from '../../core/services/decode-token.service';
   imports: [
     MongooseModule.forFeature([{name: 'Location', schema: LocationSchema}]),
     MongooseModule.forFeature([{name: 'Business', schema: BusinessSchema}]),
+    MongooseModule.forFeature([{name: 'Batch', schema: BatchSchema}]),
   ],
   controllers: [BusinessesV1Controller],
-  providers: [LocationService, ParseService, CsvParser, BusinessService, AccountService, MailSenderService, DecodeTokenService],
+  providers: [LocationService, ParseService, CsvParser, BusinessService, BatchService, AccountService, MailSenderService, DecodeTokenService],
   exports: []
 })
 export class BusinessesV1Module implements NestModule {
