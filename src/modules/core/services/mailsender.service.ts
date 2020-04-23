@@ -314,6 +314,14 @@ export class MailSenderService {
     const templateUrl =
         join(__dirname, '../../../assets/templates/importConfirmation.ejs');
 
+    if (locals.confirm) {
+      locals.action = "já estão ativas";
+      locals.result = "aprovadas";
+    } else {
+      locals.action = "foram rejeitadas e estão à espera de ser revistas.";
+      locals.result = "rejeitadas";
+    }
+
     renderFile(
         templateUrl, {
           ...locals,
@@ -330,7 +338,7 @@ export class MailSenderService {
             const mainOptions = {
               from: '"Open4Business by VOSTPT"<no-reply@vost.pt>',
               to: locals.emailToSend,
-              subject: 'Lojas Importadas: Ativadas',
+              subject: `Lojas Importadas: ${locals.result}`,
               html: data
             };
 

@@ -501,18 +501,25 @@ export class BusinessesV1Controller {
     const isAdmin = req.context.isAdmin;
 
     if (!isAdmin) {
-      return res.status(400).send(getResponse(
-          400, {resultMessage: 'Only admin can activate accounts.'}));
+      return res.status(403).send(getResponse(
+          403, {resultMessage: 'Only admin can approve locations.'}));
     }
 
     let response = getResponse(200);
 
     try {
-      const changes = await this.locationService.updateLocations(
+      let changes = await this.locationService.updateLocations(
           {query: {'audit.batchId': batchId}, update: {isActive: confirm}});
 
+      changes = await this.batchService.updateBatch(
+        {query: {'batchId': batchId}, update: {status: confirm ? 'APPROVED' : 'REJECTED'}});
+
       // Send notification email to user
-      const locals = {emailToSend: email, portalUrl: `${environment.portal}`};
+      const locals = {
+        emailToSend: email, 
+        portalUrl: `${environment.portal}`,
+        confirm
+      };
 
       this.mailService.sendImportConfirmationEmail(locals);
 
@@ -559,6 +566,9 @@ export class BusinessesV1Controller {
       }
 
       if (submit) {
+        changes = await this.batchService.updateBatch(
+          {query: {'batchId': batchId}, update: {status: 'WAITING_FOR_APPROVAL'}});
+
         // Send notification email to admin
         const userLocals = {
           emailToSend: environment.adminEmail,
