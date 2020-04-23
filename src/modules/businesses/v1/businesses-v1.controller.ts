@@ -547,7 +547,7 @@ export class BusinessesV1Controller {
       // Send notification email to user
       const locals = {
         emailToSend: email,
-        portalUrl: `${environment.portal}`,
+        portalUrl: `${environment.portal}/businesses/locations`,
         confirm
       };
 
@@ -582,7 +582,7 @@ export class BusinessesV1Controller {
         return res.status(response.resultCode).send(response);
       }
 
-      if (batch.status != 'WAITING_FOR_APPROVAL') {
+      if (batch.status != 'WAITING_FOR_APPROVAL' && batch.status != 'REJECTED') {
         response = getResponse(400, {resultMessage: 'Batch already closed.'});
         return res.status(response.resultCode).send(response);
       }
@@ -638,12 +638,27 @@ export class BusinessesV1Controller {
   @ApiBadRequestResponse({description: 'Invalid parameters'})
   @ApiNotFoundResponse({description: 'No Business was found for user'})
   @ApiInternalServerErrorResponse({description: 'Unknown error'})
-  async getBatchLocations(
+  async getBatches(
       @Query('status') status: string,
       @Req() req,
       @Res() res: Response,
       ): Promise<object> {
     const email = req.context.authId;
+    const isAdmin = req.context.isAdmin;
+
+    let filter = {};
+
+    if (status) {
+      filter = {...filter, status: { $in: status.split(',') }};
+    }
+
+    // Shortcut for admin
+    if (isAdmin) {
+      const batches = await this.batchService.findMany(filter);
+
+      const response: ResponseModel = getResponse(200, {data: {batches}});
+      return res.status(response.resultCode).send(response);
+    }
 
     const business = await this.businessService.find({'email': email});
 
@@ -652,12 +667,72 @@ export class BusinessesV1Controller {
     }
 
     try {
-      const batches = await this.batchService.findMany({
-        businessId: business.businessId,
-        status: status || 'WAITING_FOR_APPROVAL'
-      });
+      filter = {
+        ...filter,
+        businessId: business.businessId
+      };
+      
+      const batches = await this.batchService.findMany(filter);
 
       const response: ResponseModel = getResponse(200, {data: {batches}});
+      return res.status(response.resultCode).send(response);
+    } catch (e) {
+      return res.status(400).send(getResponse(400, {data: e}));
+    }
+  }
+
+  @Get('locations/batch/:batchId')
+  @ApiOperation({summary: 'Get all locations batches from user\'s business'})
+  @ApiQuery({name: 'status', type: String, required: false})
+  @ApiOkResponse({description: 'Returns list of batch locations'})
+  @ApiForbiddenResponse({description: 'Forbidden'})
+  @ApiBadRequestResponse({description: 'Invalid parameters'})
+  @ApiNotFoundResponse({description: 'No Business was found for user'})
+  @ApiInternalServerErrorResponse({description: 'Unknown error'})
+  async getBatch(
+      @Param('batchId') batchId: string,
+      @Req() req,
+      @Res() res: Response,
+      ): Promise<object> {
+    const email = req.context.authId;
+    const isAdmin = req.context.isAdmin;
+
+    if (!batchId) {
+      return res.status(409).send(getResponse(409, {resultMessage: "Missing 'batchId'"}));
+    }
+
+    // Shortcut for admin
+    if (isAdmin) {
+      const batch = await this.batchService.find({batchId});
+
+      if (!batch) {
+        return res.status(404).send(getResponse(404));
+      }
+
+      const response: ResponseModel = getResponse(200, {data: {batch}});
+      return res.status(response.resultCode).send(response);
+    }
+
+    const business = await this.businessService.find({'email': email});
+
+    if (!business) {
+      return res.status(404).send(getResponse(404));
+    }
+
+    try {
+      let filter = {};
+
+      filter = {
+        businessId: business.businessId,
+        batchId
+      };
+      const batch = await this.batchService.find(filter);
+
+      if (!batch) {
+        return res.status(404).send(getResponse(404));
+      }
+
+      const response: ResponseModel = getResponse(200, {data: {batch}});
       return res.status(response.resultCode).send(response);
     } catch (e) {
       return res.status(400).send(getResponse(400, {data: e}));

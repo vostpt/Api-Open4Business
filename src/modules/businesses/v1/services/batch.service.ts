@@ -24,7 +24,7 @@ export class BatchService {
   }
 
   findMany(filter) {
-    return this.batchModel.find(filter).exec();
+    return this.batchModel.find(filter).sort({'status': -1, 'updatedAt': -1}).exec();
   }
 
   async updateBatch(body: {query: object; update: object}) {
