@@ -100,7 +100,7 @@ export class InsightsV1Controller {
     const exp = new RegExp('.*' + search + '.*', 'i');
 
     // default filter: active and opened
-    let filter = {isActive: true, isOpen: true};
+    let filter = {isActive: true, isOpen: true, disabled: false};
 
     if (search) {
       filter = {

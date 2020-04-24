@@ -1,30 +1,31 @@
-import {Body, Controller, Get, Logger, Post, Put, Query, Req, Res} from '@nestjs/common';
-import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags, ApiUnauthorizedResponse} from '@nestjs/swagger';
-import {Response} from 'express';
-
-import {getResponse} from '../../core/helpers/response.helper';
-import {CreatedSuccessResponseModel} from '../../core/models/created-success-response.model';
-import {SuccessResponseModel} from '../../core/models/success-response.model';
-
-import {ChangePasswordModel} from './models/change-password.model';
-import {ConfirmAccountModel} from './models/confirm-account.model';
-import {RecoverPasswordModel} from './models/recover-password.model';
-import {ResendConfirmAccountEmailModel} from './models/resend-confirm-account-email.model';
-import {SignInResponseModel} from './models/sign-in-response.model';
-import {SignInModel} from './models/sign-in.model';
-import {SignUpResponseModel} from './models/sign-up-response.model';
-import {SignUpModel} from './models/sign-up.model';
-import {AuthsService} from './services/auths.service';
-import {ChangePasswordService} from './services/change-password.service';
-import {ConfirmAccountService} from './services/confirm-account.service';
-import {DecodeTokenService} from '../../core/services/decode-token.service';
-import {LogoutService} from './services/logout.service';
-import {RecoverPasswordService} from './services/recover-password.service';
-import {ResendConfirmAccountEmailService} from './services/resend-confirm-account-email.service';
-import {SignInService} from './services/sign-in.service';
-import {SignUpService} from './services/sign-up.service';
-import {VerifyTokenService} from './services/verify-token.service';
+import { Body, Controller, Get, Logger, Post, Put, Query, Req, Res } from '@nestjs/common';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { Response } from 'express';
+import { getResponse } from '../../core/helpers/response.helper';
+import { CreatedSuccessResponseModel } from '../../core/models/created-success-response.model';
+import { SuccessResponseModel } from '../../core/models/success-response.model';
 import { BusinessService } from '../../core/services/business.service';
+import { DecodeTokenService } from '../../core/services/decode-token.service';
+import { ChangePasswordModel } from './models/change-password.model';
+import { ConfirmAccountModel } from './models/confirm-account.model';
+import { RecoverPasswordModel } from './models/recover-password.model';
+import { ResendConfirmAccountEmailModel } from './models/resend-confirm-account-email.model';
+import { SignInResponseModel } from './models/sign-in-response.model';
+import { SignInModel } from './models/sign-in.model';
+import { SignUpResponseModel } from './models/sign-up-response.model';
+import { SignUpModel } from './models/sign-up.model';
+import { AuthsService } from './services/auths.service';
+import { ChangePasswordService } from './services/change-password.service';
+import { ConfirmAccountService } from './services/confirm-account.service';
+import { LogoutService } from './services/logout.service';
+import { RecoverPasswordService } from './services/recover-password.service';
+import { ResendConfirmAccountEmailService } from './services/resend-confirm-account-email.service';
+import { SignInService } from './services/sign-in.service';
+import { SignUpService } from './services/sign-up.service';
+import { VerifyTokenService } from './services/verify-token.service';
+import { LocationService } from '../../core/services/location.service';
+
+
 
 @Controller('api/auth/v1')
 @ApiTags('Auth')
@@ -33,6 +34,7 @@ export class AuthV1Controller {
 
   constructor(
       private readonly businessService: BusinessService,
+      private readonly locationService: LocationService,
       private readonly authService: AuthsService,
       private readonly changePasswordService: ChangePasswordService,
       private readonly confirmAccountService: ConfirmAccountService,
@@ -44,8 +46,7 @@ export class AuthV1Controller {
       private readonly signInService: SignInService,
       private readonly signUpService: SignUpService,
       private readonly verifyTokenService: VerifyTokenService,
-      private readonly decodeTokenService: DecodeTokenService) {
-  }
+      private readonly decodeTokenService: DecodeTokenService) {}
 
   @Get('session')
   @ApiOperation({summary: 'Verify if the session is still valid'})
@@ -170,9 +171,9 @@ export class AuthV1Controller {
 
   @Put('info')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Change an account\'s password' })
-  @ApiOkResponse({ description: 'Successfully changed the password', type: SuccessResponseModel })
-  @ApiBadRequestResponse({ description: 'Missing parameters or the password and confirmPassword don\'t match' })
+  @ApiOperation({ summary: 'Change an account\'s info' })
+  @ApiOkResponse({ description: 'Successfully updated info', type: SuccessResponseModel })
+  @ApiBadRequestResponse({ description: 'Missing parameters' })
   @ApiUnauthorizedResponse({ description: 'Invalid authorization header' })
   async updateAuth(
     @Body('authId') authId: string,
@@ -180,6 +181,7 @@ export class AuthV1Controller {
     @Body('name') name: string,
     @Body('phone') phone: string,
     @Body('company') company: string,
+    @Body('isActive') isActive: boolean,
     @Req() req,
     @Res() res: Response
   ): Promise<object> {
@@ -192,6 +194,7 @@ export class AuthV1Controller {
     }
 
     const query = {authId: decoded.authId};
+    let update = {};
 
     // Only admin can change other users info
     if (authId && authId != decoded.authId) {
@@ -203,12 +206,15 @@ export class AuthV1Controller {
             {resultMessage: 'You don\'t have permission to do this action.'}));
       }
 
+      update = {
+        ...update,
+        isActive
+      };
+
       query.authId = authId;
     }
 
     try {
-      let update = {};
-
       if (email) {
         update = {
           ...update,
@@ -217,11 +223,11 @@ export class AuthV1Controller {
           }
         };
       }
-  
+
       if (name) {
         update = {...update, name};
       }
-  
+
       if (phone) {
         update = {...update, phone};
       }
@@ -229,37 +235,41 @@ export class AuthV1Controller {
       if (company) {
         update = {...update, company};
       }
-      
+
       let changes = await this.authService.updateAuth({query, update});
-  
+
       if (company) {
-        changes = await this.businessService.updateBusiness({query: {email}, update});
+        changes =
+            await this.businessService.updateBusiness({query: {email}, update});
       }
-  
+      const business = await this.businessService.find({email});
+
+      // Disable / Enable all locations for user
+      await this.locationService.updateLocations({query: {businessId: business.businessId, disabled: isActive}, update: {disabled: !isActive}});
+
       const auth = await this.authService.findAuth(query);
-  
+
       const response = getResponse(200, {
         data: {
-          info: {email: auth.authId, name: auth.name, phone: auth.phone},
+          info: {email: auth.authId, name: auth.name, phone: auth.phone, isActive: auth.isActive},
           changes
         }
       });
-  
-      return res.status(response.resultCode).send(response);  
+
+      return res.status(response.resultCode).send(response);
     } catch (e) {
       let response;
 
       if (e.code === 11000) {
         this.logger.error('Duplicated email', e);
-        response = getResponse(409, { resultMessage: 'Email already exists' });
-      }
-      else {
+        response = getResponse(409, {resultMessage: 'Email already exists'});
+      } else {
         this.logger.error('Error on update user info', e);
-        response = getResponse(400, { data: e });
+        response = getResponse(400, {data: e});
       }
-  
+
       return res.status(response.resultCode).send(response);
-    }   
+    }
   }
 
   @Get('info')
@@ -305,7 +315,8 @@ export class AuthV1Controller {
           email: auth.authId,
           name: auth.name,
           phone: auth.phone,
-          isAdmin: auth.isAdmin
+          isAdmin: auth.isAdmin,
+          isActive: auth.isActive
         },
         company
       }
@@ -341,7 +352,8 @@ export class AuthV1Controller {
     }
 
     const exp = new RegExp('.*' + search + '.*', 'i');
-    const filter = search ? {$or:[ { authId: {$regex: exp} }, { name: {$regex: exp} }]} : {};
+    const filter =
+        search ? {$or: [{authId: {$regex: exp}}, {name: {$regex: exp}}]} : {};
     const users = await this.authService.getAll(filter);
 
     const response = getResponse(200, {data: {users}});

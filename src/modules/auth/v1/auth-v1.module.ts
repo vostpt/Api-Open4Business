@@ -17,6 +17,8 @@ import { SessionsService } from './services/sessions.service';
 import { SignInService } from './services/sign-in.service';
 import { SignUpService } from './services/sign-up.service';
 import { VerifyTokenService } from './services/verify-token.service';
+import { LocationService } from '../../core/services/location.service';
+import { LocationSchema } from '../../core/schemas/location.schema';
 
 
 
@@ -24,11 +26,12 @@ import { VerifyTokenService } from './services/verify-token.service';
   imports: [
     MongooseModule.forFeature([{name: 'Session', schema: SessionSchema}]),
     MongooseModule.forFeature([{name: 'Auth', schema: AuthSchema}]),
+    MongooseModule.forFeature([{name: 'Location', schema: LocationSchema}]),
     MongooseModule.forFeature([{name: 'Business', schema: BusinessSchema}]),
   ],
   controllers: [AuthV1Controller],
   providers: [
-    AuthsService, BusinessService, ChangePasswordService, ConfirmAccountService,
+    AuthsService, BusinessService, LocationService, ChangePasswordService, ConfirmAccountService,
     DecodeTokenService, LogoutService, RecoverPasswordService,
     ResendConfirmAccountEmailService, SignInService, SignUpService,
     SessionsService, VerifyTokenService

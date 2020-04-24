@@ -34,5 +34,6 @@ export class LocationModel {
   obs: string;
   isActive: boolean;
   isOpen: boolean;
+  disabled: boolean;
   audit: object;
 }
