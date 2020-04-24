@@ -17,8 +17,23 @@ export class ExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse();
     const request = ctx.getRequest();
 
-    const status = exception instanceof HttpException ?
-      exception.getStatus() : (exception.errors ? HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR);
+    let status = HttpStatus.BAD_REQUEST;
+
+    try {
+      if (exception.response?.data) {
+        this.logger.error('found error data in exception response');
+        status = exception.response?.data.resultCode;
+      }  
+    } catch (e) {
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+    }
+    
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+    }
+
+    // status = exception instanceof HttpException ?
+    //   exception.getStatus() : (exception.errors ? HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR);
 
     const errors = JSON.stringify(exception.errors)
 

@@ -541,7 +541,7 @@ export class BusinessesV1Controller {
 
       changes = await this.batchService.updateBatch({
         query: {'batchId': batchId},
-        update: {status: confirm ? 'APPROVED' : 'REJECTED'}
+        update: {status: confirm ? 'APPROVED' : 'REJECTED', updatedAt: Math.round(+new Date() / 1000)},
       });
 
       // Send notification email to user
@@ -598,7 +598,7 @@ export class BusinessesV1Controller {
       if (submit) {
         changes = await this.batchService.updateBatch({
           query: {'batchId': batchId},
-          update: {status: 'WAITING_FOR_APPROVAL'}
+          update: {status: 'WAITING_FOR_APPROVAL', updatedAt: Math.round(+new Date() / 1000)}
         });
 
         // Send notification email to admin
@@ -617,7 +617,7 @@ export class BusinessesV1Controller {
         this.mailService.sendImportNotificationEmail(userLocals);
       } else {
         changes = await this.batchService.updateBatch(
-            {query: {'batchId': batchId}, update: {status: 'DISCARDED'}});
+            {query: {'batchId': batchId}, update: {status: 'DISCARDED', updatedAt: Math.round(+new Date() / 1000)}});
 
         changes = await this.locationService.deleteBatchLocations(batchId);
       }
