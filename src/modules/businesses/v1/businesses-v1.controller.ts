@@ -21,7 +21,7 @@ import { AccountService } from './services/account.service';
 import { BatchService } from './services/batch.service';
 import { ParseService } from './services/parser.service';
 
-
+import { imageSize } from 'image-size';
 
 @Controller('api/businesses/v1')
 @ApiBearerAuth()
@@ -35,7 +35,7 @@ export class BusinessesV1Controller {
       private readonly batchService: BatchService,
       private readonly mailService: MailSenderService,
       private readonly decodeTokenService: DecodeTokenService,
-      private readonly parser: ParseService, private readonly logger: Logger) {
+      private readonly parserService: ParseService, private readonly logger: Logger) {
     this.logger.log('Init insights controller', BusinessesV1Controller.name);
   }
 
@@ -87,17 +87,32 @@ export class BusinessesV1Controller {
 
     try {
       const business = await this.businessService.find({email});
-      console.log('business', business.businessId, business.email);
+
       if (isAdmin || email == business.email) {
         if (fs.existsSync(markerPath)) {
-          fs.renameSync(
-              markerPath,
-              `${environment.uploadsPath}/markers/${businessId}.png`);
+          
+
+          // await this.parserService.resizeMarker(`${environment.uploadsPath}/markers/${businessId}.png`);
+          imageSize(markerPath, function (err, dimensions) {
+            console.log(dimensions.width, dimensions.height);
+
+            if (dimensions.width <= 41 && dimensions.height <= 51) {
+              fs.renameSync(
+                markerPath,
+                `${environment.uploadsPath}/markers/${businessId}.png`);
+
+                res.status(200).send(getResponse(200, {resultMessage}));
+            } else {
+              resultMessage = `A imagem deve ter no máx 41x51 e não ${dimensions.width}x${dimensions.height}.`;
+              res.status(400).send(getResponse(400, {resultMessage}));
+            }
+          });
         } else {
           resultMessage = 'Marker not found.';
         }
 
-        return res.status(200).send(getResponse(200, {resultMessage}));
+        // return res.status(200).send(getResponse(200, {resultMessage}));
+        return null;
       }
 
       return res.status(404).send(getResponse(404, {resultMessage}));
@@ -172,12 +187,12 @@ export class BusinessesV1Controller {
 
       let data;
       try {
-        data = await this.parser.parseLocations(dataFile, headers, ',');
+        data = await this.parserService.parseLocations(dataFile, headers, ',');
       } catch (e) {
         console.error('Parse with ","', e);
 
         this.logger.warn('Failed to parse CSV using ",". Try again with ";"');
-        data = await this.parser.parseLocations(dataFile, headers, ';');
+        data = await this.parserService.parseLocations(dataFile, headers, ';');
       }
 
       if (data) {

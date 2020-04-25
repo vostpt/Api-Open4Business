@@ -37,6 +37,7 @@
     "ejs": "^3.0.1",
     "generate-password": "^1.5.1",
     "helmet": "^3.21.3",
+    "image-size": "^0.8.3",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^5.9.1",
     "nest-csv-parser": "^2.0.0",
