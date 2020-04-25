@@ -4,8 +4,8 @@ export class LocationModel {
   company: string;
   store: string;
   address: string;
-  fregesia: string;
-  concelho: string;
+  parish: string;
+  council: string;
   district: string;
   zipCode: string;
   latitude: number;

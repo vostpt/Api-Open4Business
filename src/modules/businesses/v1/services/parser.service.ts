@@ -35,8 +35,8 @@ export class ParseService {
     const stream = fs.createReadStream(filename, encoding);
 
     const data = await this.csvParser.parse(stream, LocationModel, null, null, {
-      encoding: 'utf8',
-      separator: separator,
+      encoding,
+      separator,
       mapHeaders: ({header, index}) => {
         return headers[index];
       },

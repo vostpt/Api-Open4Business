@@ -13,22 +13,50 @@ export class AuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean
       |Promise<boolean>|Observable<boolean> {
     const request = context.switchToHttp().getRequest();
-    const {authorization} = request.headers;
+    
+    // const {authorization} = request.headers;
 
-    if (!authorization) {
-      this.logger.error(
-          `Authorization header not found ${JSON.stringify(request.headers)}`,
-          this.loggerContext);
-      return false;
-    }
+    // if (!authorization) {
+    //   this.logger.error(
+    //       `Authorization header not found ${JSON.stringify(request.headers)}`,
+    //       this.loggerContext);
+    //   return false;
+    // }
 
-    const regex = /^Bearer\s([^.]+(?:\.[^.]+){2})$/gm;
+    // const regex = /^Bearer\s([^.]+(?:\.[^.]+){2})$/gm;
 
-    if (!regex.test(authorization)) {
-      this.logger.error(
-          `Authorization header doesn\'t match regex ${authorization}`,
-          this.loggerContext);
-      return false;
+    // if (!regex.test(authorization)) {
+    //   this.logger.error(
+    //       `Authorization header doesn\'t match regex ${authorization}`,
+    //       this.loggerContext);
+    //   return false;
+    // }
+
+    let authorization;
+
+    // Try to find header with authorization
+    if (request.headers && request.headers.authorization) {
+      authorization = request.headers.authorization;
+
+      if (!authorization) {
+        this.logger.error(
+            `Authorization header not found ${JSON.stringify(request.headers)}`,
+            this.loggerContext);
+        return false;
+      }
+  
+      const regex = /^Bearer\s([^.]+(?:\.[^.]+){2})$/gm;
+  
+      if (!regex.test(authorization)) {
+        this.logger.error(
+            `Authorization header doesn\'t match regex ${authorization}`,
+            this.loggerContext);
+        return false;
+      }
+    } 
+    // Try ti find query param with token
+    else if(request.query.token) {
+      authorization = 'Bearer ' + request.query.token;
     }
 
     const headers = {authorization};

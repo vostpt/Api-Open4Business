@@ -108,8 +108,8 @@ export class InsightsV1Controller {
         ...{
           $or: [
             {company: {$regex: exp}}, {store: {$regex: exp}},
-            {address: {$regex: exp}}, {fregesia: {$regex: exp}},
-            {concelho: {$regex: exp}}, {district: {$regex: exp}}
+            {address: {$regex: exp}}, {parish: {$regex: exp}},
+            {council: {$regex: exp}}, {district: {$regex: exp}}
           ]
         }
       };

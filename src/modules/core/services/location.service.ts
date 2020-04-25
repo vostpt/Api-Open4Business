@@ -10,6 +10,53 @@ export class LocationService {
       @InjectModel('Location') private readonly locationModel:
           Model<LocationModel>, private readonly logger: Logger) {}
 
+  validateStringField(value) {
+    if (value == null || value == undefined || value.trim() == '') {
+      return false;
+    }
+
+    return true;
+  }
+
+  isValid(location: LocationModel) {
+    if (!this.validateStringField(location.locationId)) {
+      return false;
+    }
+    if (!this.validateStringField(location.company)) {
+      return false;
+    }
+    if (!this.validateStringField(location.store)) {
+      return false;
+    }
+    if (!this.validateStringField(location.longitude)) {
+      return false;
+    }
+    if (!this.validateStringField(location.latitude)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  hasSchedule(location: LocationModel) {
+    if (this.validateStringField(location.schedule1) &&
+        this.validateStringField(location.schedule1Dow)) {
+      return true;
+    }
+
+    if (this.validateStringField(location.schedule2) &&
+        this.validateStringField(location.schedule2Dow)) {
+      return true;
+    }
+
+    if (this.validateStringField(location.schedule3) &&
+        this.validateStringField(location.schedule3Dow)) {
+      return true;
+    }
+
+    return false;
+  }
+
   async createLocation(data: LocationModel): Promise<LocationModel> {
     this.logger.setContext(LocationService.name);
 
@@ -23,7 +70,8 @@ export class LocationService {
 
   async updateLocation(businessId: string, location: LocationModel) {
     const _location =
-        await this.locationModel.findOne({locationId: location.locationId, businessId})
+        await this.locationModel
+            .findOne({locationId: location.locationId, businessId})
             .exec();
 
     if (!_location) {
@@ -35,8 +83,8 @@ export class LocationService {
     _location.company = location.company;
     _location.store = location.store;
     _location.address = location.address;
-    _location.parish = location.fregesia;
-    _location.council = location.concelho;
+    _location.parish = location.parish;
+    _location.council = location.council;
     _location.district = location.district;
     _location.zipCode = location.zipCode;
     _location.latitude = location.latitude;
@@ -72,7 +120,11 @@ export class LocationService {
   }
 
   async getLocationsWithPagination(filter, limit: number, offset: number) {
-    return this.locationModel.find(filter).sort('store').limit(limit).skip(offset).exec();
+    return this.locationModel.find(filter)
+        .sort('store')
+        .limit(limit)
+        .skip(offset)
+        .exec();
   }
 
   async getLocations(filter) {

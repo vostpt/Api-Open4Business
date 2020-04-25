@@ -7,9 +7,9 @@ export class BatchModel {
   status: string;
   createdAt: number;
   updatedAt: number;
-  stats: {total: number, sucess: number, ignored: number};
+  stats: {total: number, added: number, updated: number, ignored: number};
 
   constructor() {
-    this.stats = {total: 0, sucess: 0, ignored: 0};
+    this.stats = {total: 0, added: 0, updated: 0, ignored: 0};
   }
 }
