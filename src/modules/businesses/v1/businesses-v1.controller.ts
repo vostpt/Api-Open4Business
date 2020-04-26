@@ -381,6 +381,7 @@ export class BusinessesV1Controller {
         return res.status(response.resultCode).send(response);
       }
 
+      batch.businessId = business.businessId;
       batch.personEmail = business.email;
       batch.personName = business.name;
       batch.personPhone = business.phone;
@@ -422,6 +423,7 @@ export class BusinessesV1Controller {
 
       return res.status(200).send(getResponse(200, {data: updatedLocation}));
     } catch (e) {
+      console.error(e);
       return res.status(400).send(getResponse(
           400, {resultMessage: 'Failed to update location', data: e}));
     }
