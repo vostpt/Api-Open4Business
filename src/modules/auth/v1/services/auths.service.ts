@@ -38,8 +38,8 @@ export class AuthsService {
     return this.authModel.find(filter)
         .populate('business')
         .select([
-          '-password', '-__v', '-_id', '-confirmationCode',
-          '-confirmationCodeCreatedAt', '-activationToken', '-deactivatedAt',
+          '-password', '-__v', '-_id', 
+          '-confirmationCodeCreatedAt', '-deactivatedAt',
           '-deletedAt'
         ])
         .sort('name')
