@@ -12,6 +12,7 @@ export class AuthModel {
   isActive: boolean;
   isAdmin: boolean;
   activationToken: string;
+  business: string;
 
   constructor(data: AuthModel) {
     this.authId = data.authId;
@@ -27,5 +28,6 @@ export class AuthModel {
     this.isActive = data.isActive;
     this.isAdmin = data.isAdmin || false;
     this.activationToken = data.activationToken;
+    this.business = data.business;
   }
 }

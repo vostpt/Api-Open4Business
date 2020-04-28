@@ -55,5 +55,9 @@ export const AuthSchema = new Schema({
   deletedAt: {
     type: Number,
     required: false
+  },
+  business: {
+    type: Schema.Types.ObjectId,
+    ref: 'Business'
   }
 });

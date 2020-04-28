@@ -327,11 +327,14 @@ export class AuthV1Controller {
   @Get('users')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users' })
+  @ApiQuery({ name: 'search', required: false, description: "Filter users by name" })
+  @ApiQuery({ name: 'active', required: false, description: "Filter users by state: true | false" })
   @ApiOkResponse({ description: 'Successfully get all users', type: SuccessResponseModel })
   @ApiUnauthorizedResponse({ description: 'Invalid authorization header' })
   @ApiForbiddenResponse({ description: 'Forbiden' })
   async getUsers(
     @Query('search') search: string,
+    @Query('active') active: boolean,
     @Req() req,
     @Res() res: Response
   ): Promise<object> {
@@ -352,9 +355,19 @@ export class AuthV1Controller {
     }
 
     const exp = new RegExp('.*' + search + '.*', 'i');
-    const filter =
+    let filter =
         search ? {$or: [{authId: {$regex: exp}}, {name: {$regex: exp}}]} : {};
+
+    if (active !== undefined && active !== null) {
+      filter = {
+        ...filter,
+        ...{isActive: active}
+      };
+    }
+
     const users = await this.authService.getAll(filter);
+
+    // const company = await this.businessService.find({email: query.authId});
 
     const response = getResponse(200, {data: {users}});
     return res.status(response.resultCode).send(response);

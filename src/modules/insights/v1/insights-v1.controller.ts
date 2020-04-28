@@ -57,7 +57,7 @@ export class InsightsV1Controller {
       const name = business.name;
 
       const account = await (await this.accountService.createAccount(
-                                 authId, password, name))
+                                 authId, password, name, newBusiness._id))
                           .toPromise();
 
       // Send notification email to admin

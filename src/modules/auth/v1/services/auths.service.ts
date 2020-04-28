@@ -1,9 +1,9 @@
-import {Injectable, Logger} from '@nestjs/common';
-import {InjectModel} from '@nestjs/mongoose';
-import {hash} from 'bcrypt';
-import {Model} from 'mongoose';
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { hash } from 'bcrypt';
+import { Model } from 'mongoose';
+import { AuthModel } from '../models/auth.model';
 
-import {AuthModel} from '../models/auth.model';
 
 @Injectable()
 export class AuthsService {
@@ -26,6 +26,7 @@ export class AuthsService {
     }
 
     const auth = await this.authModel(data);
+
     return auth.save();
   }
 
@@ -35,6 +36,12 @@ export class AuthsService {
 
   async getAll(filter) {
     return this.authModel.find(filter)
+        .populate('business')
+        .select([
+          '-password', '-__v', '-_id', '-confirmationCode',
+          '-confirmationCodeCreatedAt', '-activationToken', '-deactivatedAt',
+          '-deletedAt'
+        ])
         .sort('name')
         .exec();
   }

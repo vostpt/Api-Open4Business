@@ -46,7 +46,8 @@ export class SignUpService {
       isAdmin: false,
       deletedAt: null,
       deactivatedAt: null,
-      activationToken
+      activationToken,
+      business: body.business
     });
 
     // create the new auth
