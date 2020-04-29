@@ -111,7 +111,9 @@ export class LocationService {
     _location.contactForSchedule = location.contactForSchedule;
     _location.typeOfService = location.typeOfService;
     _location.obs = location.obs;
-
+    _location.external = {...(_location.external || {}), ...location.external};
+    _location.audit.updatedAt = Math.round(+new Date() / 1000);
+    
     return _location.save();
   }
 

@@ -3,6 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { Response } from 'express';
 import * as fs from 'fs';
+import { imageSize } from 'image-size';
 import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
 import { environment } from '../../../config/environment';
 import { multerOptions } from '../../../config/multer.config';
@@ -21,7 +22,7 @@ import { AccountService } from './services/account.service';
 import { BatchService } from './services/batch.service';
 import { ParseService } from './services/parser.service';
 
-import { imageSize } from 'image-size';
+
 
 @Controller('api/businesses/v1')
 @ApiBearerAuth()
@@ -35,7 +36,8 @@ export class BusinessesV1Controller {
       private readonly batchService: BatchService,
       private readonly mailService: MailSenderService,
       private readonly decodeTokenService: DecodeTokenService,
-      private readonly parserService: ParseService, private readonly logger: Logger) {
+      private readonly parserService: ParseService,
+      private readonly logger: Logger) {
     this.logger.log('Init insights controller', BusinessesV1Controller.name);
   }
 
@@ -90,20 +92,18 @@ export class BusinessesV1Controller {
 
       if (isAdmin || email == business.email) {
         if (fs.existsSync(markerPath)) {
-          
-
-          // await this.parserService.resizeMarker(`${environment.uploadsPath}/markers/${businessId}.png`);
-          imageSize(markerPath, function (err, dimensions) {
+          imageSize(markerPath, function(err, dimensions) {
             console.log(dimensions.width, dimensions.height);
 
             if (dimensions.width <= 41 && dimensions.height <= 51) {
               fs.renameSync(
-                markerPath,
-                `${environment.uploadsPath}/markers/${businessId}.png`);
+                  markerPath,
+                  `${environment.uploadsPath}/markers/${businessId}.png`);
 
-                res.status(200).send(getResponse(200, {resultMessage}));
+              res.status(200).send(getResponse(200, {resultMessage}));
             } else {
-              resultMessage = `A imagem deve ter no máx 41x51 e não ${dimensions.width}x${dimensions.height}.`;
+              resultMessage = `A imagem deve ter no máx 41x51 e não ${
+                  dimensions.width}x${dimensions.height}.`;
               res.status(400).send(getResponse(400, {resultMessage}));
             }
           });
@@ -244,20 +244,38 @@ export class BusinessesV1Controller {
               });
             }
 
+            // Check for coded info in obs
+            if (location.obs) {
+              const tag = location.obs.match(/\$\{.+?:.+?\}/g);
+      
+              if (tag) {
+                for (let k = 0; k < tag.length; k++) {
+                  const info = tag[k].replace(/(\$\{|\})/g, '').split(':');
+      
+                  if (!location.external) {
+                    location.external = {};
+                  }
+      
+                  location.external[info[0]] = info[1];
+      
+                  location.obs = location.obs.replace(tag[k], '');
+                }
+              }
+            }
+
             if (this.locationService.isValid(location)) {
               if (update) {
-                console.log(i + 1, 'UPDATE');
                 await this.locationService.updateLocation(
                     business.businessId, location);
                 batch.stats.updated++;
               } else {
-                console.log(i + 1, 'ADD');
                 await this.locationService.createLocation(location);
                 batch.stats.added++;
               }
             } else {
               let errorMessage = 'Campos obrigatórios em falta:';
-              if (!this.locationService.validateStringField(location.locationId)) {
+              if (!this.locationService.validateStringField(
+                      location.locationId)) {
                 errorMessage += ' ID,';
               }
               if (!this.locationService.validateStringField(location.company)) {
@@ -266,10 +284,12 @@ export class BusinessesV1Controller {
               if (!this.locationService.validateStringField(location.store)) {
                 errorMessage += ' Loja,';
               }
-              if (!this.locationService.validateStringField(location.longitude)) {
+              if (!this.locationService.validateStringField(
+                      location.longitude)) {
                 errorMessage += ' Longitude,';
               }
-              if (!this.locationService.validateStringField(location.latitude)) {
+              if (!this.locationService.validateStringField(
+                      location.latitude)) {
                 errorMessage += ' Latitude,';
               }
 
@@ -385,6 +405,24 @@ export class BusinessesV1Controller {
       batch.personEmail = business.email;
       batch.personName = business.name;
       batch.personPhone = business.phone;
+
+      if (location.obs) {
+        const tag = location.obs.match(/\$\{.+?:.+?\}/g);
+
+        if (tag) {
+          for (let k = 0; k < tag.length; k++) {
+            const info = tag[k].replace(/(\$\{|\})/g, '').split(':');
+
+            if (!location.external) {
+              location.external = {};
+            }
+
+            location.external[info[0]] = info[1];
+
+            location.obs = location.obs.replace(tag[k], '');
+          }
+        }
+      }
 
       let updatedLocation;
       if (location.locationId) {

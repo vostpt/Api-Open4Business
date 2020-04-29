@@ -35,5 +35,12 @@ export class LocationModel {
   isActive: boolean;
   isOpen: boolean;
   disabled: boolean;
-  audit: object;
+  audit: {
+    personName?: string,
+    personEmail?: string,
+    personPhone?: string,
+    batchId?: string,
+    updatedAt: number
+  };
+  external: object;
 }

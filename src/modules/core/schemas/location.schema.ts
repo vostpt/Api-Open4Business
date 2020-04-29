@@ -34,4 +34,5 @@ export const LocationSchema = new Schema({
   isOpen: {type: Boolean, required: false, default: true},
   disabled: {type: Boolean, required: false, default: false},
   audit: {type: Object, required: false},
+  external: {type: Object, required: false},
 });
