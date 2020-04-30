@@ -366,7 +366,7 @@ export class AuthV1Controller {
 
       await this.authService.updateAuth({
         query,
-        update: {isActive: false, deletedAt: Math.round(+new Date() / 1000)}
+        update: {isActive: false, deactivatedAt: null, deletedAt: Math.round(+new Date() / 1000)}
       });
 
       const business = await this.businessService.find({email});
