@@ -6,6 +6,7 @@ import { CreatedSuccessResponseModel } from '../../core/models/created-success-r
 import { SuccessResponseModel } from '../../core/models/success-response.model';
 import { BusinessService } from '../../core/services/business.service';
 import { DecodeTokenService } from '../../core/services/decode-token.service';
+import { LocationService } from '../../core/services/location.service';
 import { ChangePasswordModel } from './models/change-password.model';
 import { ConfirmAccountModel } from './models/confirm-account.model';
 import { RecoverPasswordModel } from './models/recover-password.model';
@@ -23,7 +24,6 @@ import { ResendConfirmAccountEmailService } from './services/resend-confirm-acco
 import { SignInService } from './services/sign-in.service';
 import { SignUpService } from './services/sign-up.service';
 import { VerifyTokenService } from './services/verify-token.service';
-import { LocationService } from '../../core/services/location.service';
 
 
 
@@ -208,7 +208,10 @@ export class AuthV1Controller {
 
       update = {
         ...update,
-        isActive
+        ...{
+          isActive,
+              deactivatedAt: isActive ? null : Math.round(+new Date() / 1000)
+        }
       };
 
       query.authId = authId;
@@ -245,13 +248,21 @@ export class AuthV1Controller {
       const business = await this.businessService.find({email});
 
       // Disable / Enable all locations for user
-      await this.locationService.updateLocations({query: {businessId: business.businessId, disabled: isActive}, update: {disabled: !isActive}});
+      await this.locationService.updateLocations({
+        query: {businessId: business.businessId, disabled: isActive},
+        update: {disabled: !isActive}
+      });
 
       const auth = await this.authService.findAuth(query);
 
       const response = getResponse(200, {
         data: {
-          info: {email: auth.authId, name: auth.name, phone: auth.phone, isActive: auth.isActive},
+          info: {
+            email: auth.authId,
+            name: auth.name,
+            phone: auth.phone,
+            isActive: auth.isActive
+          },
           changes
         }
       });
@@ -269,6 +280,106 @@ export class AuthV1Controller {
       }
 
       return res.status(response.resultCode).send(response);
+    }
+  }
+
+  @Post('deactivate')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Deactivate an account' })
+  @ApiOkResponse({ description: 'Successfully deactivated account', type: SuccessResponseModel })
+  @ApiBadRequestResponse({ description: 'Missing parameters' })
+  @ApiUnauthorizedResponse({ description: 'Invalid authorization header' })
+  async deactivateAuth(
+    @Body('email') email: string,
+    @Req() req,
+    @Res() res: Response
+  ): Promise<object> {
+    // decode the token
+    const decoded = await this.decodeTokenService.decodeToken(req['token']);
+
+    if (decoded === null) {
+      return res.status(401).send(
+          getResponse(401, {resultMessage: 'Invalid token'}));
+    }
+
+    // Only admin can delete users
+    const admin = await this.authService.findAuth({authId: decoded.authId});
+
+    if (!admin || !admin.isAdmin) {
+      return res.status(403).send(getResponse(
+          403,
+          {resultMessage: 'You don\'t have permission to do this action.'}));
+    }
+
+    try {
+      const query = {authId: email, deletedAt: null};
+
+      await this.authService.updateAuth({
+        query,
+        update: {isActive: false, deactivatedAt: Math.round(+new Date() / 1000)}
+      });
+
+      const business = await this.businessService.find({email});
+
+      // Disable all locations for user
+      await this.locationService.updateLocations(
+          {query: {businessId: business.businessId}, update: {disabled: true}});
+
+      const response = getResponse(200);
+
+      return res.status(response.resultCode).send(response);
+    } catch (e) {
+      return res.status(400).send(getResponse(400, {data: e}));
+    }
+  }
+
+  @Post('delete')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change an account\'s info' })
+  @ApiOkResponse({ description: 'Successfully updated info', type: SuccessResponseModel })
+  @ApiBadRequestResponse({ description: 'Missing parameters' })
+  @ApiUnauthorizedResponse({ description: 'Invalid authorization header' })
+  async deleteAuth(
+    @Body('email') email: string,
+    @Req() req,
+    @Res() res: Response
+  ): Promise<object> {
+    // decode the token
+    const decoded = await this.decodeTokenService.decodeToken(req['token']);
+
+    if (decoded === null) {
+      return res.status(401).send(
+          getResponse(401, {resultMessage: 'Invalid token'}));
+    }
+
+    // Only admin can delete users
+    const admin = await this.authService.findAuth({authId: decoded.authId});
+
+    if (!admin || !admin.isAdmin) {
+      return res.status(403).send(getResponse(
+          403,
+          {resultMessage: 'You don\'t have permission to do this action.'}));
+    }
+
+    try {
+      const query = {authId: email};
+
+      await this.authService.updateAuth({
+        query,
+        update: {isActive: false, deletedAt: Math.round(+new Date() / 1000)}
+      });
+
+      const business = await this.businessService.find({email});
+
+      // Disable all locations for user
+      await this.locationService.updateLocations(
+          {query: {businessId: business.businessId}, update: {disabled: true}});
+
+      const response = getResponse(200);
+
+      return res.status(response.resultCode).send(response);
+    } catch (e) {
+      return res.status(400).send(getResponse(400, {data: e}));
     }
   }
 
@@ -321,20 +432,21 @@ export class AuthV1Controller {
         company
       }
     });
+
     return res.status(response.resultCode).send(response);
   }
 
   @Get('users')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users' })
-  @ApiQuery({ name: 'search', required: false, description: "Filter users by name" })
-  @ApiQuery({ name: 'active', required: false, description: "Filter users by state: true | false" })
+  @ApiQuery({ name: 'search', required: false, description: 'Filter users by name' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter users by state(active | inactive | pending | deleted)' })
   @ApiOkResponse({ description: 'Successfully get all users', type: SuccessResponseModel })
   @ApiUnauthorizedResponse({ description: 'Invalid authorization header' })
   @ApiForbiddenResponse({ description: 'Forbiden' })
   async getUsers(
     @Query('search') search: string,
-    @Query('active') active: boolean,
+    @Query('status') status: string,
     @Req() req,
     @Res() res: Response
   ): Promise<object> {
@@ -358,16 +470,48 @@ export class AuthV1Controller {
     let filter =
         search ? {$or: [{authId: {$regex: exp}}, {name: {$regex: exp}}]} : {};
 
-    if (active !== undefined && active !== null) {
-      filter = {
-        ...filter,
-        ...{isActive: active}
-      };
+    if (status) {
+      switch (status) {
+        case 'active':
+          filter = {
+            ...filter,
+            ...{
+              isActive: true
+            }
+          };
+          break;
+
+        case 'inactive':
+          filter = {
+            ...filter,
+            ...{
+              isActive: false, deactivatedAt: {$ne: null}
+            }
+          };
+          break;
+
+        case 'pending':
+          filter = {
+            ...filter,
+            ...{
+              isActive: false, activationToken: {$ne: null},
+                  deactivatedAt: null, deletedAt: null
+            }
+          };
+          break;
+
+        case 'deleted':
+          filter = {
+            ...filter,
+            ...{
+              deletedAt: {$ne: null}
+            }
+          };
+          break;
+      }
     }
 
     const users = await this.authService.getAll(filter);
-
-    // const company = await this.businessService.find({email: query.authId});
 
     const response = getResponse(200, {data: {users}});
     return res.status(response.resultCode).send(response);

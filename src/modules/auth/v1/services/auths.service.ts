@@ -37,12 +37,8 @@ export class AuthsService {
   async getAll(filter) {
     return this.authModel.find(filter)
         .populate('business')
-        .select([
-          '-password', '-__v', '-_id', 
-          '-confirmationCodeCreatedAt', '-deactivatedAt',
-          '-deletedAt'
-        ])
-        .sort('name')
+        .select(['-password', '-__v', '-_id'])
+        .sort([['isActive', 'desc'], ['name', 'asc']])
         .exec();
   }
 
