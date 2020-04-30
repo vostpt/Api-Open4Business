@@ -6,9 +6,9 @@ export class AccountService {
   constructor(
     private http: HttpService, private readonly logger: Logger) {}
 
-    async createAccount(authId: string, password: string, name: string, business: string) {
+    async createAccount(authId: string, password: string, name: string, phone: string, business: string) {
 
-      return this.http.post(`http://localhost:${process.env.PORT}/api/auth/v1/signup`, {authId, password, name, business})
+      return this.http.post(`http://localhost:${process.env.PORT}/api/auth/v1/signup`, {authId, password, name, phone, business})
               .pipe(
                   map(response => response.data)
               ); 

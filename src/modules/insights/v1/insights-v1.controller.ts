@@ -55,9 +55,10 @@ export class InsightsV1Controller {
       const authId = business.email;
       const password = generator.generate({length: 8, numbers: true});
       const name = business.name;
+      const phone = business.phone;
 
       const account = await (await this.accountService.createAccount(
-                                 authId, password, name, newBusiness._id))
+                                 authId, password, name, phone, newBusiness._id))
                           .toPromise();
 
       // Send notification email to admin
