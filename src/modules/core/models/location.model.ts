@@ -43,4 +43,6 @@ export class LocationModel {
     updatedAt: number
   };
   external: object;
+
+  business: string;
 }

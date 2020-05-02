@@ -35,4 +35,8 @@ export const LocationSchema = new Schema({
   disabled: {type: Boolean, required: false, default: false},
   audit: {type: Object, required: false},
   external: {type: Object, required: false},
+  business: {
+    type: Schema.Types.ObjectId,
+    ref: 'Business'
+  }
 });

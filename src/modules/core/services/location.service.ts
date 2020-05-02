@@ -3,12 +3,15 @@ import {InjectModel} from '@nestjs/mongoose';
 import {Model} from 'mongoose';
 
 import {LocationModel} from '../models/location.model';
+import { BusinessModel } from '../models/business.model';
 
 @Injectable()
 export class LocationService {
   constructor(
-      @InjectModel('Location') private readonly locationModel:
-          Model<LocationModel>, private readonly logger: Logger) {}
+      @InjectModel('Location') private readonly locationModel: Model<LocationModel>, 
+      @InjectModel('Business') private readonly businessModel: Model<BusinessModel>, 
+      private readonly logger: Logger
+  ) {}
 
   validateStringField(value) {
     if (value == null || value == undefined || value.trim() == '') {
@@ -113,7 +116,7 @@ export class LocationService {
     _location.obs = location.obs;
     _location.external = {...(_location.external || {}), ...location.external};
     _location.audit.updatedAt = Math.round(+new Date() / 1000);
-    
+
     return _location.save();
   }
 
@@ -123,6 +126,7 @@ export class LocationService {
 
   async getLocationsWithPagination(filter, limit: number, offset: number) {
     return this.locationModel.find(filter)
+        .populate('business')
         .sort('store')
         .limit(limit)
         .skip(offset)
@@ -131,6 +135,26 @@ export class LocationService {
 
   async getLocations(filter) {
     return this.locationModel.find(filter).exec();
+  }
+
+  async getSectors(filter) {
+    return this.locationModel
+        .aggregate([
+          {$match: filter},
+          {$sort: {'sector': 1}},
+          {$group: {_id: {sector: '$sector'}, count: {$sum: 1}}}
+        ])
+        .exec();
+  }
+
+  async getDistricts(filter) {
+    return this.locationModel
+        .aggregate([
+          {$match: filter},
+          {$sort: {'district': 1}},
+          {$group: {_id: {district: '$district'}, count: {$sum: 1}}}
+        ])
+        .exec();
   }
 
   async updateLocations(body: {query: object; update: object}) {
@@ -143,5 +167,15 @@ export class LocationService {
 
   async deleteBatchLocations(batchId: string) {
     return this.locationModel.deleteMany({'audit.batchId': batchId}).exec();
+  }
+  
+  async updateBusinessRef() {
+    const businesses = await this.businessModel.find({}).select(['_id', 'businessId']).exec();
+    
+    for (let i = 0; i < businesses.length; i++) {
+      const business = businesses[i];
+      console.log('business', business.businessId, business._id);
+      await this.locationModel.updateMany({businessId: business.businessId}, {business: business._id}).exec()
+    }
   }
 }
