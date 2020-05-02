@@ -1,18 +1,19 @@
-import { Body, Controller, Get, Logger, Post, Query, Res } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags, ApiQuery } from '@nestjs/swagger';
-import { Response } from 'express';
-import * as generator from 'generate-password';
-import { environment } from '../../../config/environment';
-import { ResponseModel } from '../../auth/v1/models/response.model';
-import { AccountService } from '../../businesses/v1/services/account.service';
-import { getResponse } from '../../core/helpers/response.helper';
-import { BusinessModel } from '../../core/models/business.model';
-import { SuccessResponseModel } from '../../core/models/success-response.model';
-import { BusinessService } from '../../core/services/business.service';
-import { LocationService } from '../../core/services/location.service';
-import { MailSenderService } from '../../core/services/mailsender.service';
-import { join } from 'path';
+import {Body, Controller, Get, Logger, Post, Query, Res} from '@nestjs/common';
+import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
+import {Response} from 'express';
 import * as fs from 'fs';
+import * as generator from 'generate-password';
+import {join} from 'path';
+
+import {environment} from '../../../config/environment';
+import {ResponseModel} from '../../auth/v1/models/response.model';
+import {AccountService} from '../../businesses/v1/services/account.service';
+import {getResponse} from '../../core/helpers/response.helper';
+import {BusinessModel} from '../../core/models/business.model';
+import {SuccessResponseModel} from '../../core/models/success-response.model';
+import {BusinessService} from '../../core/services/business.service';
+import {LocationService} from '../../core/services/location.service';
+import {MailSenderService} from '../../core/services/mailsender.service';
 
 
 @Controller('api/insights/v1')
@@ -29,13 +30,26 @@ export class InsightsV1Controller {
     this.logger.log('Init insights controller', InsightsV1Controller.name);
   }
 
+  @Get('guide')
+  @ApiOperation({summary: 'Get quick guide'})
+  @ApiOkResponse({description: 'Request is valid', type: SuccessResponseModel})
+  async getQuickGuide(@Res() res: Response): Promise<object> {
+    const guidePath = join(__dirname, '../../../assets/quick-guide.pdf');
+    
+    res.download(guidePath, 'OPEN4BUSINESS - QUICK GUIDE.pdf', () => {
+      res.status(200);
+    });
+    
+    return null;
+  }
+
   @Post('business')
   @ApiOperation({ summary: 'Register a business' })
   @ApiCreatedResponse({ description: 'Successfully registered business', type: BusinessModel })
   @ApiBadRequestResponse({ description: 'Invalid business info' })
   async createBusiness(@Body() business: BusinessModel, @Res() res: Response): Promise<object> {
     let response: ResponseModel = null;
-    
+
     let newBusiness;
     try {
       newBusiness = await this.businessService.createBusiness(business);
@@ -57,9 +71,10 @@ export class InsightsV1Controller {
       const name = business.name;
       const phone = business.phone;
 
-      const account = await (await this.accountService.createAccount(
-                                 authId, password, name, phone, newBusiness._id))
-                          .toPromise();
+      const account =
+          await (await this.accountService.createAccount(
+                     authId, password, name, phone, newBusiness._id))
+              .toPromise();
 
       // Send notification email to admin
       const locals = {
@@ -142,10 +157,8 @@ export class InsightsV1Controller {
   }
 
   @Get('locations/businesses')
-  @ApiOperation({ summary: 'Get businesses' })
-  async getBusinesses(
-    @Res() res: Response
-  ): Promise<object> {
+  @ApiOperation({summary: 'Get businesses'})
+  async getBusinesses(@Res() res: Response): Promise<object> {
     const businesses = await this.businessService.findAll({});
 
     const publicInfo = businesses.map((b) => {

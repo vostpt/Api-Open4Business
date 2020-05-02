@@ -34,11 +34,17 @@ export class AuthsService {
     return this.authModel.findOne(body).exec();
   }
 
-  async getAll(filter) {
+  async countUsers(filter) {
+    return this.authModel.countDocuments(filter).exec();
+  }
+
+  async getAll(filter: any, limit: number, offset: number) {
     return this.authModel.find(filter)
         .populate('business')
         .select(['-password', '-__v', '-_id'])
         .sort([['isActive', 'desc'], ['name', 'asc']])
+        .limit(limit)
+        .skip(offset)
         .exec();
   }
 

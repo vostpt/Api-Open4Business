@@ -538,7 +538,8 @@ export class BusinessesV1Controller {
       const locals = {
         emailToSend: decodedAuth.authId,
         company: business.company,
-        loginUrl: `${environment.portal}/auth/signin`
+        loginUrl: `${environment.portal}/auth/signin`,
+        guideUrl: `${environment.portal}/api/insights/v1/guide`
       };
 
       this.mailService.sendAccountConfirmedEmail(locals);

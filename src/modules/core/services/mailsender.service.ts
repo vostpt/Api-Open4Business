@@ -51,6 +51,7 @@ export class MailSenderService {
                 this.loggerContext, err);
             return;
           } else {
+            console.log('sendConfirmAccountEmail', locals.emailToSend);
             const mainOptions = {
               from: '"Open4Business by VOSTPT"<no-reply@vost.pt>',
               to: locals.emailToSend,
@@ -59,6 +60,7 @@ export class MailSenderService {
             };
             return this.transport.sendMail(mainOptions, (error) => {
               if (error) {
+                console.log(error);
                 this.logger.error(
                     'Error while trying to send confirmation account email',
                     this.loggerContext);
@@ -262,7 +264,12 @@ export class MailSenderService {
               from: '"Open4Business by VOSTPT"<no-reply@vost.pt>',
               to: locals.emailToSend,
               subject: 'Conta confirmada',
-              html: data
+              html: data,
+              attachments: [
+                {
+                  path: join(__dirname, '../../../assets/quick-guide.pdf')
+                }
+              ]
             };
             return this.transport.sendMail(mainOptions, (error) => {
               if (error) {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Logger, Post, Put, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Post, Put, Query, Req, Res, ParseIntPipe } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { Response } from 'express';
 import { getResponse } from '../../core/helpers/response.helper';
@@ -439,12 +439,16 @@ export class AuthV1Controller {
   @Get('users')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users' })
+  @ApiQuery({name: 'limit', type: Number, required: true})
+  @ApiQuery({name: 'offset', type: Number, required: true})
   @ApiQuery({ name: 'search', required: false, description: 'Filter users by name' })
   @ApiQuery({ name: 'status', required: false, description: 'Filter users by state(active | inactive | pending | deleted)' })
   @ApiOkResponse({ description: 'Successfully get all users', type: SuccessResponseModel })
   @ApiUnauthorizedResponse({ description: 'Invalid authorization header' })
   @ApiForbiddenResponse({ description: 'Forbiden' })
   async getUsers(
+    @Query('limit', ParseIntPipe) limit,
+    @Query('offset', ParseIntPipe) offset,
     @Query('search') search: string,
     @Query('status') status: string,
     @Req() req,
@@ -511,9 +515,12 @@ export class AuthV1Controller {
       }
     }
 
-    const users = await this.authService.getAll(filter);
+    const total = await this.authService.countUsers(filter);
+    const users = await this.authService.getAll(filter, limit, offset);
 
-    const response = getResponse(200, {data: {users}});
+    const response = getResponse(
+        200, {data: {users, total, limit: limit, offset: offset}});
+
     return res.status(response.resultCode).send(response);
   }
 
