@@ -116,6 +116,7 @@ export class LocationService {
     _location.obs = location.obs;
     _location.external = {...(_location.external || {}), ...location.external};
     _location.audit.updatedAt = Math.round(+new Date() / 1000);
+    _location.isLocationValid = location.isLocationValid;
 
     return _location.save();
   }

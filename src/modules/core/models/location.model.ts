@@ -45,4 +45,5 @@ export class LocationModel {
   external: object;
 
   business: string;
+  isLocationValid: boolean;
 }

@@ -1,26 +1,30 @@
-import { Body, Controller, Delete, Get, Logger, Param, ParseIntPipe, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
-import { Response } from 'express';
+import {Body, Controller, Delete, Get, HttpService, Logger, Param, ParseIntPipe, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors} from '@nestjs/common';
+import {FileInterceptor} from '@nestjs/platform-express';
+import {ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiUnauthorizedResponse} from '@nestjs/swagger';
+import {Response} from 'express';
 import * as fs from 'fs';
-import { imageSize } from 'image-size';
-import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
-import { environment } from '../../../config/environment';
-import { multerOptions } from '../../../config/multer.config';
-import { ResponseModel } from '../../auth/v1/models/response.model';
-import { AuthGuard } from '../../core/guards/auth.guard';
-import { getResponse } from '../../core/helpers/response.helper';
-import { BusinessModel } from '../../core/models/business.model';
-import { LocationModel } from '../../core/models/location.model';
-import { BusinessService } from '../../core/services/business.service';
-import { DecodeTokenService } from '../../core/services/decode-token.service';
-import { LocationService } from '../../core/services/location.service';
-import { MailSenderService } from '../../core/services/mailsender.service';
-import { BatchModel } from './models/batch.model';
-import { LocationsResponseModel } from './models/businesses-responses.model';
-import { AccountService } from './services/account.service';
-import { BatchService } from './services/batch.service';
-import { ParseService } from './services/parser.service';
+import {imageSize} from 'image-size';
+import {of, throwError} from 'rxjs';
+import {catchError, map, mergeMap} from 'rxjs/operators';
+import {v1 as uuidv1, v4 as uuidv4} from 'uuid';
+
+import {environment} from '../../../config/environment';
+import {multerOptions} from '../../../config/multer.config';
+import {ResponseModel} from '../../auth/v1/models/response.model';
+import {AuthGuard} from '../../core/guards/auth.guard';
+import {getResponse} from '../../core/helpers/response.helper';
+import {BusinessModel} from '../../core/models/business.model';
+import {LocationModel} from '../../core/models/location.model';
+import {BusinessService} from '../../core/services/business.service';
+import {DecodeTokenService} from '../../core/services/decode-token.service';
+import {LocationService} from '../../core/services/location.service';
+import {MailSenderService} from '../../core/services/mailsender.service';
+
+import {BatchModel} from './models/batch.model';
+import {LocationsResponseModel} from './models/businesses-responses.model';
+import {AccountService} from './services/account.service';
+import {BatchService} from './services/batch.service';
+import {ParseService} from './services/parser.service';
 
 
 
@@ -37,6 +41,7 @@ export class BusinessesV1Controller {
       private readonly mailService: MailSenderService,
       private readonly decodeTokenService: DecodeTokenService,
       private readonly parserService: ParseService,
+      private readonly httpService: HttpService,
       private readonly logger: Logger) {
     this.logger.log('Init insights controller', BusinessesV1Controller.name);
   }
@@ -247,17 +252,17 @@ export class BusinessesV1Controller {
             // Check for coded info in obs
             if (location.obs) {
               const tag = location.obs.match(/\$\{.+?:.+?\}/g);
-      
+
               if (tag) {
                 for (let k = 0; k < tag.length; k++) {
                   const info = tag[k].replace(/(\$\{|\})/g, '').split(':');
-      
+
                   if (!location.external) {
                     location.external = {};
                   }
-      
+
                   location.external[info[0]] = info[1];
-      
+
                   location.obs = location.obs.replace(tag[k], '');
                 }
               }
@@ -372,6 +377,45 @@ export class BusinessesV1Controller {
       response = getResponse(
           412, {resultMessage: 'Loja não pode estar aberta sem horário.'});
       return res.status(response.resultCode).send(response);
+    }
+
+    // Validate location
+    if (environment.mapbox && environment.country) {
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${
+          location.longitude},${location.latitude}.json?access_token=${
+          environment.mapbox}&types=country`;
+
+      try {
+        location.isLocationValid =
+            await (
+                await this.httpService
+                    .get(url, {headers: {'Content-Type': 'application/json'}})
+                    .pipe(
+                        catchError(err => {
+                          return throwError(err);
+                        }),
+                        mergeMap(res => {
+                          return of(res);
+                        }),
+                        map(
+                            res => {
+                              if (res['features'].length > 0) {
+                                const country = res['features'][0];
+                                if (country.place_name == environment.country) {
+                                  return true;
+                                }
+                              }
+
+                              return false;
+                            },
+                            () => {
+                              return false;
+                            })))
+                .toPromise();
+      } catch (error) {
+        // console.error(error.response);
+        location.isLocationValid = true;
+      }
     }
 
     // Create batch

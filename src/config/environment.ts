@@ -24,6 +24,8 @@ export class Environment {
   smtpPassword: string;
   adminEmail: string;
   portal: string;
+  mapbox: string;
+  country: string;
 }
 
 export const environment: Environment = {
@@ -45,5 +47,7 @@ export const environment: Environment = {
   smtpEmail: process.env.SMTP_EMAIL,
   smtpPassword: process.env.SMTP_PASSWORD,
   adminEmail: process.env.ADMIN_EMAIL,
-  portal: process.env.PORTAL
+  portal: process.env.PORTAL,
+  mapbox: process.env.MAPBOX,
+  country: process.env.COUNTRY
 };

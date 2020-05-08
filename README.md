@@ -79,3 +79,15 @@ docker build --target publishStage --tag vostpt/open4business-api:latest .
 echo "PASS" | docker login --username USER --password-stdin docker.io
 docker push vostpt/open4business-api:latest
 ```
+
+Continente
+NW: 42.165412, -8.951873
+SE: 36.893529, -6.298540
+
+Açores
+NW: 39.737816, -31.325672
+SE: 36.896195, -24.901089
+
+Madeira
+NW: 33.179556, -17.383185
+SE: 32.356150, -16.245027
