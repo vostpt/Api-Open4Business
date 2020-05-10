@@ -249,6 +249,64 @@ export class BusinessesV1Controller {
               });
             }
 
+            // Validate location
+            if (environment.mapbox && environment.country) {
+              const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${
+                  location.longitude},${location.latitude}.json?access_token=${
+                  environment.mapbox}&types=country`;
+
+              try {
+                location.isLocationValid =
+                    await (
+                        await this.httpService
+                            .get(
+                                url,
+                                {headers: {'Content-Type': 'application/json'}})
+                            .pipe(
+                                catchError(err => {
+                                  return throwError(err);
+                                }),
+                                mergeMap(res => {
+                                  return of(res);
+                                }),
+                                map(
+                                    res => {
+                                      const resultData = res['data'];
+
+                                      if (resultData['features'] &&
+                                          resultData['features'].length > 0) {
+                                        const country =
+                                            resultData['features'][0];
+
+                                        if (country.place_name ==
+                                            environment.country) {
+                                          return true;
+                                        }
+                                      }
+
+                                      return false;
+                                    },
+                                    () => {
+                                      return false;
+                                    })))
+                        .toPromise();
+              } catch (error) {
+                console.error(
+                    'error validating location', error.response || error);
+                location.isLocationValid = true;
+              }
+            }
+
+            // Validate
+            if (!location.isLocationValid) {
+              location.isOpen = false;
+              errors.push({
+                message:
+                    'Loja marcada como fechada porque não se encontra em território nacional.',
+                row: i + 1
+              });
+            }
+
             // Check for coded info in obs
             if (location.obs) {
               const tag = location.obs.match(/\$\{.+?:.+?\}/g);
@@ -375,7 +433,7 @@ export class BusinessesV1Controller {
     // Validate
     if (location.isOpen && (!this.locationService.hasSchedule(location))) {
       response = getResponse(
-          412, {resultMessage: 'Loja não pode estar aberta sem horário.'});
+          450, {resultMessage: 'Store cannot be open without a schedule.'});
       return res.status(response.resultCode).send(response);
     }
 
@@ -399,8 +457,12 @@ export class BusinessesV1Controller {
                         }),
                         map(
                             res => {
-                              if (res['features'].length > 0) {
-                                const country = res['features'][0];
+                              const resultData = res['data'];
+
+                              if (resultData['features'] &&
+                                  resultData['features'].length > 0) {
+                                const country = resultData['features'][0];
+
                                 if (country.place_name == environment.country) {
                                   return true;
                                 }
@@ -413,9 +475,17 @@ export class BusinessesV1Controller {
                             })))
                 .toPromise();
       } catch (error) {
-        // console.error(error.response);
+        console.error('error validating location', error.response || error);
         location.isLocationValid = true;
       }
+    }
+
+    // Validate
+    if (location.isOpen && !location.isLocationValid) {
+      response = getResponse(451, {
+        resultMessage: 'Store cannot be opened because location is not valid.'
+      });
+      return res.status(response.resultCode).send(response);
     }
 
     // Create batch
@@ -610,6 +680,7 @@ export class BusinessesV1Controller {
   @ApiQuery({name: 'limit', type: Number, required: true})
   @ApiQuery({name: 'offset', type: Number, required: true})
   @ApiQuery({name: 'search', type: String, required: false})
+  @ApiQuery({name: 'status', type: String, required: false})
   @ApiQuery({name: 'batchId', type: String, required: false})
   @ApiOkResponse({description: 'Returns list of locations', type: LocationsResponseModel})
   @ApiForbiddenResponse({description: 'Forbidden'})
@@ -620,6 +691,7 @@ export class BusinessesV1Controller {
     @Query('limit', ParseIntPipe) limit,
     @Query('offset', ParseIntPipe) offset,
     @Query('search') search: string,
+    @Query('status') status: string,
     @Query('batchId') batchId: string,
     @Req() req,
     @Res() res: Response,
@@ -659,6 +731,24 @@ export class BusinessesV1Controller {
             {council: {$regex: exp}}, {district: {$regex: exp}}
           ]
         };
+      }
+
+      if (status) {
+        if (status == 'open' || status == 'closed') {
+          filter = {
+            ...filter,
+            ...{
+              isOpen: (status == 'open')
+            }
+          };
+        } else if (status == 'pending') {
+          filter = {
+            ...filter,
+            ...{
+              isActive: false
+            }
+          };
+        }
       }
 
       if (batchId) {
