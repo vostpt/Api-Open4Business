@@ -498,7 +498,7 @@ export class BusinessesV1Controller {
 
     try {
       let businessFilter = null;
-      if (isAdmin) {
+      if (isAdmin && location.locationId) {
         const _location: LocationModel =
             await this.locationService.findLocation(
                 {locationId: location.locationId});
